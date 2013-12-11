@@ -1,43 +1,22 @@
-<!doctype html>
-<html>
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-  <title>GRIDIT</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/slick.grid.css') }}" type="text/css"/>
-  <link rel="stylesheet" href="{{ url_for('static',filename='css/smoothness/jquery-ui-1.8.16.custom.css')}}" type="text/css"/>
-  <link rel="stylesheet" href="{{url_for('static',filename='css/examples.css') }}" type="text/css"/>
-<body>
-<div id="myGrid" style="width:600px;height:500px;"></div>
-<script src="{{ url_for('static', filename='js/jquery-1.7.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/jquery.event.drag-2.2.js') }}"></script>
+{% extends "layout.html" %}
+{% block body %}
+<h1>{{ schema.name }}<h1>
+<h2>{{ grid.description|safe }}</h2>
+<h3>Filters</h3>
+<ul>
+  {% for filter in grid_filters %}
+  <li>{{ filter }}</li>
+  {% endfor %}
+</ul>
 
-<script src="{{ url_for('static', filename='js/slick.core.js') }}"></script>
-<script src="{{ url_for('static', filename='js/slick.grid.js') }}"></script>
+<h3>Attributes<h3>
+<ul>
+  {% for attribute in grid_attributes %}
+  <li>{{ attribute }}</li>
+  {% endfor %}
+</ul>
 
-<script>
-  var grid;
-  var columns = {{ columns|tojson|safe }};
-
-  var options = {
-    enableCellNavigation: true,
-    enableColumnReorder: false
-  };
-
-  $(function () {
-    var data = [];
-    for (var i = 0; i < 500; i++) {
-      data[i] = {
-        title: "Task " + i,
-        duration: "5 days",
-        percentComplete: Math.round(Math.random() * 100),
-        start: "01/01/2009",
-        finish: "01/05/2009",
-        effortDriven: (i % 5 == 0)
-      };
-    }
-
-    grid = new Slick.Grid("#myGrid", data, columns, options);
-  })
-</script>
-</body>
-</html>
+<a href="{{ url_for('destroy_grid',schema_id=schama.id,id=grid.id) }}">Destroy</a>
+<a href="{{ url_for('gridz', schema_id=schema.id) }}">Gridz</a>
+<a href="{{ url_for('schemas') }}">Schemas</a>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block body %}
+    <ul class=entries>
+      {% for schema in schemas %}
+      <li>
+      <h2>{{ schema.name }}</h2>{{ schema.description|safe }}
+      <a href="{{ url_for('schema',id=schema.id }}">Show</a>
+      <a href="{{ url_for('destroy_schema',id=schema.id }}">Destroy</a>
+      <a href="{{ url_for('gridz',schema_id=schema.id }}">Gridz</a>
+      </li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('new_schema') }}">New Schema</a>
+{% endblock %}

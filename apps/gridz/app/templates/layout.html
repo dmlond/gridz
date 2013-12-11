@@ -1,0 +1,10 @@
+<!doctype html>
+<title>Gridz</title>
+<div class=page>
+  <h1>Gridz</h1>
+  </div>
+  {% for message in get_flashed_messages() %}
+    <div class=flash>{{ message }}</div>
+  {% endfor %}
+  {% block body %}{% endblock %}
+</div>
