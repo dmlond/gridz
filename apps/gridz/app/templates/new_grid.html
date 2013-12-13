@@ -1,37 +1,25 @@
 {% extends "layout.html" %}
 {% block body %}
-  <h1>New { schema.name } Grid</h1>
+  <h1>New Schema {{ schema.name }} Grid</h1>
   <form action="{{ url_for('create_grid', schema_id=schema.id) }}" method=post>
+    {{ form.hidden_tag() }}
     <h3>Describe Grid<h3>
     <dl>
-      <dt>Name:</dt>
-      <dd id="grid_name_input"><input type=text size=30 name=name></dd>
-      <dt>Description:</dt>
-      <dd id="grid_description_input"><textarea name=description rows=5 cols=40></textarea></dd>
+      <dt>{{ form.name.label }}:</dt>
+      <dd id="grid_name_input">{{ form.name }}</dd>
+      <dt>{{ form.description.label }}:</dt>
+      <dd id="grid_description_input">{{ form.description(rows=5, columns=10) }}</textarea></dd>
     </dl>
 
     <h3>Define Grid Fields</h3>
     <p>
-    Queryable fields can be selected as data in queries. Filterable
+    Attribute fields can be selected as data in queries. Filter
     fields can be used in query where clauses
     </p>
-    <table id="grid_fields">
-      <tr>
-	<th>Name</th>
-	<th>Queryable?</th>
-	<th>Filterable?</th>
-      </tr>
-      <tr>
-	<td><input type=text size=30 name=grid_field_name[0]></dd>
-	<td><input type=checkbox name=grid_field_is_attribute[0] value=1></td>
-    	<td><input type=checkbox name=grid_field_is_filter[0] value=1></td>
-      </tr>
-      <tr>
-	<td><input type=text size=30 name=grid_field_name[1]></dd>
-	<td><input type=checkbox name=grid_field_is_attribute[1] value=1></td>
-    	<td><input type=checkbox name=grid_field_is_filter[1] value=1></td>
-      </tr>
-    </table>
-    <input type=submit value=Submit><a href="{{ url_for('gridz',schema_id=schema.id) }}">Cancel</a>
+    <ul id="grid_fields">
+	<li>{{ form.grid_form_fields[0] }}</li>
+	<li>{{ form.grid_form_fields[1] }}</li>
+    </ul>
+    {{ form.submit }}<a href="{{ url_for('gridz',schema_id=schema.id) }}">Cancel</a>
   </form>
 {% endblock %}

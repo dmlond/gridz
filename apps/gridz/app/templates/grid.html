@@ -3,20 +3,20 @@
 <h1>{{ schema.name }}<h1>
 <h2>{{ grid.description|safe }}</h2>
 <h3>Filters</h3>
-<ul>
+<ul id="filters">
   {% for filter in grid_filters %}
   <li>{{ filter }}</li>
   {% endfor %}
 </ul>
 
 <h3>Attributes<h3>
-<ul>
+<ul id="attributes">
   {% for attribute in grid_attributes %}
   <li>{{ attribute }}</li>
   {% endfor %}
 </ul>
 
-<a href="{{ url_for('destroy_grid',schema_id=schama.id,id=grid.id) }}">Destroy</a>
+<a href="{{ url_for('destroy_grid',schema_id=schema.id,id=grid.id) }}">Destroy</a>
 <a href="{{ url_for('gridz', schema_id=schema.id) }}">Gridz</a>
 <a href="{{ url_for('schemas') }}">Schemas</a>
 {% endblock %}

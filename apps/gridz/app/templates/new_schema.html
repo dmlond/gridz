@@ -2,11 +2,11 @@
 {% block body %}
   <form action="{{ url_for('create_schema') }}" method=post>
     <dl>
-      <dt>Name:</dt>
-      <dd><input type=text size=30 name=name></dd>
-      <dt>Description:</dt>
-      <dd><textarea name=description rows=5 cols=40></textarea></dd>
-      <dd><input type=submit value=Submit><a href="{{ url_for('schemas') }}">Cancel</a></dd>
+      <dt>{{ form.name.label }}:</dt>
+      <dd>{{ form.name }}</dd>
+      <dt>{{ form.description.label }}:</dt>
+      <dd>{{ form.description(rows=5, columns=10) }}</dd>
+      <dd>{{ form.submit }}<a href="{{ url_for('schemas') }}">Cancel</a></dd>
     </dl>
   </form>
 {% endblock %}

@@ -5,10 +5,10 @@
       {% for grid in grids %}
       <li>
       <h2>{{ grid.name }}</h2> {{ grid.description|safe }}
-      <a href="{{ url_for('destroy_grid',schema_id=schema.id,id=grid.id }}">Destroy</a>
-      <a href="{{ url_for('grid', schema_id=schema.id,id=grid.id }}">Grid Fields</a>
+      <a href="{{ url_for('destroy_grid',schema_id=schema.id,id=grid.id) }}">Destroy</a>
+      <a href="{{ url_for('grid', schema_id=schema.id,id=grid.id) }}">Grid Fields</a>
       </li>
       {% endfor %}
     </ul>
-    <a href="{{ url_for('new_schema') }}">New Schema</a>
+    <a href="{{ url_for('new_grid',schema_id=schema.id) }}">New Grid</a>
 {% endblock %}
