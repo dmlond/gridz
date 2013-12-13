@@ -16,7 +16,7 @@ class python {
       ensure => true;
     "sqlite":
       ensure => true;
-    "python-pyqyery":
+    "python-pyquery":
       ensure => true;
     "python-flask-wtf":
       ensure => true;

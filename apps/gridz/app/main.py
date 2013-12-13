@@ -132,7 +132,6 @@ def new_grid(schema_id):
     schema = find_schema(g.db,schema_id)
     form = GridForm()
     form.grid_form_fields.append_entry()
-    form.grid_form_fields.append_entry()
     return render_template('new_grid.html', schema=schema,form=form)
 
 @app.route('/grid/<schema_id>/create', methods=['POST'])
