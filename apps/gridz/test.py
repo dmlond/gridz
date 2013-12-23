@@ -4,6 +4,8 @@ import app
 import unittest
 import tempfile
 from pyquery import PyQuery as pq
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 class GridzTestCase(unittest.TestCase):
 
@@ -218,6 +220,112 @@ class GridzTestCase(unittest.TestCase):
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(0, count)
+
+        #REST
+    def test_create_grid_entry(self):
+        path = "/grid/%s/%s/_entry/create" % (500,40)
+        rv = self.app.post(path, content_type = 'application/json', data = json.dumps({}))
+        resp = json.loads(rv.data)
+        expected_message = "schema %s does not exist!" % 500
+        self.assertEqual(expected_message, resp['error'])
+        test_name = "NEW_SCHEMA"
+        test_description = "THIS IS A NEW SCHEMA"
+        db = app.main.connect_db()
+        schema_id = self.insert_schema(db, [test_name,test_description])
+        db.commit()
+        path = "/grid/%s/%s/_entry/create" % (schema_id,40)
+        rv = self.app.post(path, data = json.dumps({}))
+        resp = json.loads(rv.data)
+        expected_message = "grid %s does not exist!" % 40
+        self.assertEqual(expected_message, resp['error'])
+        test_grid_name = "NEW_GRID"
+        test_grid_description = "THIS IS A NEW GRID"
+        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
+        self.insert_grid_fields(db, grid_fields)
+        db.commit()
+        path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
+        rv = self.app.post(path, data = json.dumps({}))
+        resp = json.loads(rv.data)
+        expected_message = "please supply a document to insert!"
+        self.assertEqual(expected_message, resp['error'])
+        document = {'document': {'foo': 'foo_value','bar': 3, 'baz': 'value baz'}}
+        rv = self.app.post(path, data = json.dumps(document))
+        resp_doc = json.loads(rv.data)
+        assert '_id' in resp_doc.keys()
+        new_id = resp_doc['_id']
+        client = MongoClient()
+        self.assertEqual(1, client[test_name][test_grid_name].find({'_id': ObjectId(new_id)}).count())
+        new_doc = client[test_name][test_grid_name].find_one({'_id': ObjectId(new_id)})
+        for key in document['document'].keys():
+            self.assertEqual(document['document'][key], new_doc[key])
+        client[test_name][test_grid_name].remove()
+        client[test_name].drop_collection(test_grid_name)
+        client.drop_database(test_name)
+
+    def test_get_entry(self):
+        test_name = "NEW_SCHEMA"
+        test_description = "THIS IS A NEW SCHEMA"
+        db = app.main.connect_db()
+        schema_id = self.insert_schema(db, [test_name,test_description])
+        test_grid_name = "NEW_GRID"
+        test_grid_description = "THIS IS A NEW GRID"
+        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
+        self.insert_grid_fields(db, grid_fields)
+        db.commit()
+        client = MongoClient()
+        new_document = {'foo': 'foo_value','baz': 3, 'bar': 'value baz'}
+        new_id = client[test_name][test_grid_name].insert(new_document)
+        
+        path = "/grid/%s/%s/_entry" % (schema_id,grid_id)
+        rv = self.app.post(path, data=json.dumps({}))
+        resp = json.loads(rv.data)
+        expected_message = 'please supply either a document ID with the _id key, or a query!'
+        self.assertEqual(expected_message, resp['error'])
+
+        # TODO test that only grid attributes can be fields, and grid filters can be in query
+        not_there = '52b85fb0e4ba084049f4f9db'
+        self.assertEqual(0, client[test_name][test_grid_name].find({'_id': ObjectId(not_there)}).count())
+        rv = self.app.post(path, data=json.dumps({'_id': not_there }))
+        resp_doc = json.loads(rv.data)
+        self.assertEqual({}, resp_doc)
+    
+        rv = self.app.post(path, data=json.dumps({'_id': str(new_id)}))
+        resp_doc = json.loads(rv.data)
+        for key in new_document.keys():
+            assert key in resp_doc.keys()
+            self.assertEqual(str(new_document[key]), str(resp_doc[key]))
+
+        fields = ['foo','bar']
+        rv = self.app.post(path, data=json.dumps({'_id': str(new_id), 'fields': fields}))
+        resp_doc = json.loads(rv.data)
+        for key in new_document.keys():
+            if key in fields:
+                assert key in resp_doc.keys()
+                self.assertEqual(new_document[key], resp_doc[key])
+            else:
+                assert key not in resp_doc.keys()
+
+        query = {'baz': {'$gt': 2}}
+        rv = self.app.post(path, data=json.dumps({'query': query}))
+        resp_doc = json.loads(rv.data)
+        for key in new_document.keys():
+            assert key in resp_doc.keys()
+            self.assertEqual(str(new_document[key]), str(resp_doc[key]))
+
+        rv = self.app.post(path, data=json.dumps({'query': query, 'fields': fields}))
+        resp_doc = json.loads(rv.data)
+        for key in new_document.keys():
+            if key in fields:
+                assert key in resp_doc.keys()
+                self.assertEqual(str(new_document[key]), str(resp_doc[key]))
+            else:
+                assert key not in resp_doc.keys()
+
+        client[test_name][test_grid_name].remove()
+        client[test_name].drop_collection(test_grid_name)
+        client.drop_database(test_name)
 
 if __name__ == '__main__':
     unittest.main()

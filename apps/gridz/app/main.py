@@ -32,12 +32,23 @@ class GridForm(Form):
 def find_schema(db,id):
     cur = db.execute('select id, name, description from schemas where id = ?', (id,))
     row = cur.fetchone()
+    if row is None:
+        return row
     return dict(id=row[0],name=row[1],description=row[2])
 
 def find_grid(db,id):
     cur = db.execute("select id, schema_id, name, description from grids where id = ?", (id,))
     row = cur.fetchone()
+    if row is None:
+        return row
     return dict(id=row[0], schema_id=row[1], name=row[2], description=row[3])
+
+def find_grid_fields(db,id):
+    cur = db.execute('select name, is_attribute, is_filter from grid_fields where grid_id = ?', (id,))
+    fields = {}
+    for grid_field in cur.fetchall():
+        fields[grid_field[0]] = { 'is_attribute': bool(grid_field[1]), 'is_filter': bool(grid_field[2]) }
+    return fields
 
 def connect_db():
     return sqlite3.connect(app.config['DATABASE'])
@@ -203,12 +214,12 @@ def view_data(schema_id,id,type=None):
             return jsonify(entries)
 
 @app.route('/gridz/<schema_id>/<id>/data/query')
-def query_grid(id):
+def query_grid(schema_id,id):
     # render form to query based on grid attributes and filters with action url_for('view_data')
     return render_template('query_grid.html')
 
 @app.route('/gridz/<schema_id>/<id>/data/edit')
-def edit_data(id):
+def edit_data(schema_id,id):
     schema = find_schema(g.db,schema_id)
     grid = find_grid(g.db,id)
     grid_fields = [ row[0] for row in cur.fetchall() ]
@@ -228,57 +239,114 @@ def edit_data(id):
     columns = [ dict(id=row[0], name=row[0], field=row[0]) for row in grid_fields ]
     return render_template('edit_data.html', schema=schema, grid=grid, columns=columns, entries=entries)
 
-# AJAX UI
+# REST AJAX UI
 
-@app.route('/gridz/_entry', methods=['POST'])
-def get_entry():
-    # process request.args to return the requested entry as json
-    db_name = request.arg.get('database_name', None, type=str)    
-    collection_name = request.arg.get('collection_name', None, type=str)
-    document = request.arg.get('document', None)
-    id = request.arg.get('_id', None, type=str)
-    
-    if db_name is None or collection_name is None:
-        return jsonify({'error': 'You must supply a db_name, collection_name, and document query or _id ObjectId'})
+@app.route('/grid/<schema_id>/<id>/_entry', methods=['POST'])
+def get_entry(schema_id,id):
+    schema = find_schema(g.db,schema_id)
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return jsonify({'error': error}), 500
 
-    if document is None:
-        if id is None:
-            return jsonify({'error': 'You must supply a db_name, collection_name, and document query or _id ObjectId'})
+    grid = find_grid(g.db,id)
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return jsonify({'error': error}), 500
+
+    #TODO, throw error if query includes non-filters, or fields includes non-attributes
+    grid_fields = find_grid_fields(g.db, grid['id'])
+    request_json =  json.loads(request.data)
+    query = None
+    if '_id' in request_json.keys():
+        query = {'_id': ObjectId(request_json['_id'])}
+    elif 'query' in request_json.keys():
+        for key in request_json['query'].keys():
+            if key not in grid_fields.keys():
+                message = "%s is not a supported filter of this grid" % key
+                return jsonify({'error': message})
+            if not grid_fields[key]['is_filter']:
+                message = "%s is not a supported filter of this grid" % key
+                return jsonify({'error': message})
+        query = request_json['query']
+    else:
+        return jsonify({'error': 'please supply either a document ID with the _id key, or a query!'})
+
+    ret_doc = None
+    if 'fields' in request_json.keys():
+        requested_attributes = {}
+        for key in request_json['fields']:
+            if key != '_id':
+                if key not in grid_fields.keys():
+                    message = "%s is not a supported attribute of this grid" % key
+                    return jsonify({'error': message})
+                if not grid_fields[key]['is_attribute']:
+                    message = "%s is not a supported attribute of this grid" % key
+                    return jsonify({'error': message})
+            requested_attributes[key] = True
+
+        if '_id' in request_json['fields']:
+            requested_attributes['_id'] = True
         else:
-            return jsonify(g.client[db_name][collection_name].find_one({'_id': ObjectId(id)}, fields=document['fields']))
+            requested_attributes['_id'] = False
+        ret_doc = g.client[schema['name']][grid['name']].find_one(query, fields=requested_attributes)
     else:
-        return jsonify(g.client[db_name][collection_name].find_one(document['query'], fields=document['fields']))
+        ret_doc = g.client[schema['name']][grid['name']].find_one(query)
 
-@app.route('/gridz/_entry/create', methods=['POST'])
-def create_entry():
-    db_name = request.arg.get('database_name', None, type=str)
-    collection_name = request.arg.get('collection_name', None, type=str)
-    document = request.arg.get('document', None)
-    if document is None:
-        return jsonify({'error': 'please supply a document to insert', 'document': document })
+    if ret_doc is None:
+        return jsonify({})
+
+    if '_id' in ret_doc.keys():
+        ret_doc['_id'] = str(ret_doc['_id'])
+    return jsonify(ret_doc)
+
+@app.route('/grid/<schema_id>/<id>/_entry/create', methods=['POST'])
+def create_entry(schema_id,id):
+    schema = find_schema(g.db,schema_id)
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return jsonify({'error': error}), 500
+
+    grid = find_grid(g.db,id)
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return jsonify({'error': error}), 500
+
+    request_json =  json.loads(request.data)
+    if 'document' in request_json.keys():
+        document = request_json['document']
+        new_insert = g.client[schema['name']][grid['name']].insert(document)
+        return jsonify({'_id': str(new_insert)})
     else:
-        if collection_name is not None and document is not None:
-            g.client[db_name][collection_name].insert(document)
-            return jsonify(document)
+        return jsonify({'error': 'please supply a document to insert!'})
     
-@app.route('/gridz/_entry/update', methods=['POST'])
-def update_entry():
-    db_name = request.arg.get('database_name', None, type=str)
-    collection_name = request.arg.get('collection_name', None, type=str)
-    document = request.arg.get('document', None)
+@app.route('/grid/<schema_id>/<id>/_entry/update', methods=['POST'])
+def update_entry(schema_id,id):
+    schema = find_schema(g.db,schema_id)
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return jsonify({'error': error}), 500
 
-    if document['id'] is None:
-        return jsonify({'error': 'please suplly an id in the document to update', 'document': document })
-    else:
-        if collection_name is not None and document is not None:
-            g.client[db_name][collection_name].update(document['query'],document['update'])
-            return jsonify(document)
+    grid = find_grid(g.db,id)
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return jsonify({'error': error}), 500
 
-@app.route('/gridz/_entry/remove', methods=['POST'])
-def remove_entry():
-    db_name = request.arg.get('database_name', None, type=str)
-    collection_name = request.arg.get('collection_name', None, type=str)
     document = request.arg.get('document', None)
-    if collection_name is not None and document is not None:
-        g.client[db_name][collection_name].remove(document['query'])
-        return jsonify({'message': 'removed'})
+    g.client[schema['name']][grid['name']].update(document['query'],document['update'])
+    return jsonify(document)
+
+@app.route('/grid/<schema_id>/<id>/_entry/remove', methods=['POST'])
+def remove_entry(schema_id,id):
+    schema = find_schema(g.db,schema_id)
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return jsonify({'error': error}), 500
+
+    grid = find_grid(g.db,id)
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return jsonify({'error': error}), 500
+
+    document = request.arg.get('document', None)
+    g.client[schema['name']][grid['name']].remove(document['query'])
+    return jsonify({'message': 'removed'})
