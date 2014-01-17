@@ -20,8 +20,9 @@ class GridzTestCase(unittest.TestCase):
         grid_id = cur.lastrowid
         return grid_id
 
-    def insert_grid_fields(self, grid_fields):
-        self.db.executemany('insert into grid_fields(grid_id, name, is_attribute, is_filter) values(?,?,?,?)', grid_fields)
+    def insert_grid_fields(self, grid_id):
+        self.grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
+        self.db.executemany('insert into grid_fields(grid_id, name, is_attribute, is_filter) values(?,?,?,?)', self.grid_fields)
 
     def setUp(self):
         self.db_fd, app.app.config['DATABASE'] = tempfile.mkstemp()
@@ -100,8 +101,7 @@ class GridzTestCase(unittest.TestCase):
     def test_gridz(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid(schema_id)
-        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(grid_fields)
+        self.insert_grid_fields(grid_id)
         self.db.commit()
         path = '/gridz/%s' % schema_id
         rv = self.app.get(path)
@@ -120,8 +120,7 @@ class GridzTestCase(unittest.TestCase):
     def test_grid(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid(schema_id)
-        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(grid_fields)
+        self.insert_grid_fields(grid_id)
         self.db.commit()
         path = '/grid/%s/%s' % (schema_id,grid_id)
         rv = self.app.get(path)
@@ -129,7 +128,7 @@ class GridzTestCase(unittest.TestCase):
         assert self.test_grid_name in rv.data
         assert self.test_grid_description in rv.data
         jq = pq(rv.data)
-        for grid_field in grid_fields:
+        for grid_field in self.grid_fields:
             if bool(grid_field[2]):
                 assert grid_field[1] in jq("#attributes").html()
             if bool(grid_field[3]):
@@ -183,8 +182,7 @@ class GridzTestCase(unittest.TestCase):
     def test_destroy_grid(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid(schema_id)
-        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(grid_fields)
+        self.insert_grid_fields(grid_id)
         self.db.commit()
         path = "/grid/%s/%s/destroy" % (schema_id,grid_id)
         rv = self.app.get(path,follow_redirects=True)
@@ -212,8 +210,7 @@ class GridzTestCase(unittest.TestCase):
         expected_message = "grid %s does not exist!" % 40
         self.assertEqual(expected_message, resp['error'])
         grid_id = self.insert_grid(schema_id)
-        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(grid_fields)
+        self.insert_grid_fields(grid_id)
         self.db.commit()
         path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
         rv = self.app.post(path, data = json.dumps({}))
@@ -233,8 +230,7 @@ class GridzTestCase(unittest.TestCase):
     def test_get_entry(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid(schema_id)
-        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(grid_fields)
+        self.insert_grid_fields(grid_id)
         self.db.commit()
         new_document = {'foo': 'foo_value','baz': 3, 'bar': 'value baz'}
         new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
