@@ -9,12 +9,13 @@ from bson.objectid import ObjectId
 
 class GridzTestCase(unittest.TestCase):
 
-    def insert_schema(self,schema):
-        cur = self.db.execute('insert into schemas(name, description) values(?, ?)', schema)
+    def insert_schema(self):
+        cur = self.db.execute('insert into schemas(name, description) values(?, ?)', [self.test_name,self.test_description])
         new_id = cur.lastrowid
         return new_id
 
-    def insert_grid(self, grid):
+    def insert_grid(self, schema_id):
+        grid = [self.test_grid_name, schema_id, self.test_grid_description]
         cur = self.db.execute('insert into grids(name, schema_id, description) values(?, ?, ?)', grid)
         grid_id = cur.lastrowid
         return grid_id
@@ -42,7 +43,7 @@ class GridzTestCase(unittest.TestCase):
         os.unlink(app.app.config['DATABASE'])
 
     def test_schemas(self):
-        new_id = self.insert_schema([self.test_name,self.test_description])
+        new_id = self.insert_schema()
         self.db.commit()
         rv = self.app.get('/')
         self.assertNotEqual(rv.data, None, 'its None!')
@@ -63,7 +64,7 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(self.test_description, schema['description'])
 
     def test_schema(self):
-        new_id = self.insert_schema([self.test_name,self.test_description])
+        new_id = self.insert_schema()
         self.db.commit()
         path = "/schema/%s" % new_id
         rv = self.app.get(path)
@@ -87,7 +88,7 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(1, count)
 
     def test_destroy_schema(self):
-        new_id = self.insert_schema([self.test_name,self.test_description])
+        new_id = self.insert_schema()
         self.db.commit()
         path = "/schema/%s/destroy" % new_id
         rv = self.app.get(path,follow_redirects=True)
@@ -97,9 +98,10 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(0, count)
         
     def test_gridz(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
-        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
-        self.insert_grid_fields([[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]])
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid(schema_id)
+        grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
+        self.insert_grid_fields(grid_fields)
         self.db.commit()
         path = '/gridz/%s' % schema_id
         rv = self.app.get(path)
@@ -116,8 +118,8 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(self.test_grid_description, gridz[self.test_name][0]['description'])
         
     def test_grid(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
-        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid(schema_id)
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
         self.insert_grid_fields(grid_fields)
         self.db.commit()
@@ -134,7 +136,7 @@ class GridzTestCase(unittest.TestCase):
                 assert grid_field[1] in jq("#filters").html()
 
     def test_new_grid(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
+        schema_id = self.insert_schema()
         self.db.commit()
         path = '/grid/%s/new' % (schema_id,)
         rv = self.app.get(path)
@@ -144,7 +146,7 @@ class GridzTestCase(unittest.TestCase):
         assert jq.is_('ul#grid_fields')
 
     def test_create_grid(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
+        schema_id = self.insert_schema()
         self.db.commit()
         path = '/grid/%s/create' % (schema_id,)
         # post data does NOT support passing dict of dict, it thinks it is a file descriptor!!!
@@ -179,8 +181,8 @@ class GridzTestCase(unittest.TestCase):
 #            self.assertEqual(1, count)
 
     def test_destroy_grid(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
-        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid(schema_id)
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
         self.insert_grid_fields(grid_fields)
         self.db.commit()
@@ -202,14 +204,14 @@ class GridzTestCase(unittest.TestCase):
         resp = json.loads(rv.data)
         expected_message = "schema %s does not exist!" % 500
         self.assertEqual(expected_message, resp['error'])
-        schema_id = self.insert_schema([self.test_name,self.test_description])
+        schema_id = self.insert_schema()
         self.db.commit()
         path = "/grid/%s/%s/_entry/create" % (schema_id,40)
         rv = self.app.post(path, data = json.dumps({}))
         resp = json.loads(rv.data)
         expected_message = "grid %s does not exist!" % 40
         self.assertEqual(expected_message, resp['error'])
-        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
+        grid_id = self.insert_grid(schema_id)
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
         self.insert_grid_fields(grid_fields)
         self.db.commit()
@@ -229,8 +231,8 @@ class GridzTestCase(unittest.TestCase):
             self.assertEqual(document['document'][key], new_doc[key])
 
     def test_get_entry(self):
-        schema_id = self.insert_schema([self.test_name,self.test_description])
-        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid(schema_id)
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
         self.insert_grid_fields(grid_fields)
         self.db.commit()
