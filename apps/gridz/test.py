@@ -9,63 +9,66 @@ from bson.objectid import ObjectId
 
 class GridzTestCase(unittest.TestCase):
 
-    def insert_schema(self,db,schema):
-        cur = db.execute('insert into schemas(name, description) values(?, ?)', schema)
+    def insert_schema(self,schema):
+        cur = self.db.execute('insert into schemas(name, description) values(?, ?)', schema)
         new_id = cur.lastrowid
         return new_id
 
-    def insert_grid(self, db, grid):
-        cur = db.execute('insert into grids(name, schema_id, description) values(?, ?, ?)', grid)
+    def insert_grid(self, grid):
+        cur = self.db.execute('insert into grids(name, schema_id, description) values(?, ?, ?)', grid)
         grid_id = cur.lastrowid
         return grid_id
 
-    def insert_grid_fields(self, db, grid_fields):
-        db.executemany('insert into grid_fields(grid_id, name, is_attribute, is_filter) values(?,?,?,?)', grid_fields)
+    def insert_grid_fields(self, grid_fields):
+        self.db.executemany('insert into grid_fields(grid_id, name, is_attribute, is_filter) values(?,?,?,?)', grid_fields)
 
     def setUp(self):
         self.db_fd, app.app.config['DATABASE'] = tempfile.mkstemp()
         app.app.config['TESTING'] = True
         self.app = app.app.test_client()
         app.main.init_db()
-
+        self.test_name = "NEW_SCHEMA"
+        self.test_description = "THIS IS A NEW SCHEMA"
+        self.test_grid_name = "NEW_GRID"
+        self.test_grid_description = "THIS IS A NEW GRID"
+        self.db = app.main.connect_db()
+        self.client = MongoClient()
+        
     def tearDown(self):
+        self.client[self.test_name][self.test_grid_name].remove()
+        self.client[self.test_name].drop_collection(self.test_grid_name)
+        self.client.drop_database(self.test_name)
         os.close(self.db_fd)
         os.unlink(app.app.config['DATABASE'])
 
     def test_schemas(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        new_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        new_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         rv = self.app.get('/')
         self.assertNotEqual(rv.data, None, 'its None!')
         assert '<title>Gridz</title>' in rv.data
-        assert test_name in rv.data
-        assert test_description in rv.data
+        assert self.test_name in rv.data
+        assert self.test_description in rv.data
         rv = self.app.get('/schemas')
         self.assertNotEqual(rv.data, None, 'its None!')
         assert '<title>Gridz</title>' in rv.data
-        assert test_name in rv.data
-        assert test_description in rv.data
+        assert self.test_name in rv.data
+        assert self.test_description in rv.data
         rv = self.app.get('/schemas/json')
         schemas = json.loads(rv.data)
         self.assertEqual(1, len(schemas))
         schema = schemas[0]
         self.assertEqual(new_id, schema['id'])
-        self.assertEqual(test_name, schema['name'])
-        self.assertEqual(test_description, schema['description'])
+        self.assertEqual(self.test_name, schema['name'])
+        self.assertEqual(self.test_description, schema['description'])
 
     def test_schema(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        new_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        new_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         path = "/schema/%s" % new_id
         rv = self.app.get(path)
-        assert test_name in rv.data
-        assert test_description in rv.data
+        assert self.test_name in rv.data
+        assert self.test_description in rv.data
         assert "%s/destroy" % path in rv.data
 
     def test_schema_new(self):
@@ -74,71 +77,55 @@ class GridzTestCase(unittest.TestCase):
        assert 'Description' in rv.data
 
     def test_create_schema(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
         self.app.post('/schema/create', data=dict(
-            name=test_name,
-            description=test_description
+            name=self.test_name,
+            description=self.test_description
             ), follow_redirects=True)
-        db = app.main.connect_db()
-        cur = db.execute('select count(*) from schemas where name = ? and description = ?', (test_name, test_description))
+        cur = self.db.execute('select count(*) from schemas where name = ? and description = ?', (self.test_name,self.test_description))
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(1, count)
 
     def test_destroy_schema(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        new_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        new_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         path = "/schema/%s/destroy" % new_id
         rv = self.app.get(path,follow_redirects=True)
-        cur = db.execute('select count(*) from schemas where name = ? and description = ?', (test_name, test_description))
+        cur = self.db.execute('select count(*) from schemas where name = ? and description = ?', (self.test_name,self.test_description))
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(0, count)
         
     def test_gridz(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        test_grid_name = "NEW GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
-        self.insert_grid_fields(db, [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]])
-        db.commit()
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
+        self.insert_grid_fields([[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]])
+        self.db.commit()
         path = '/gridz/%s' % schema_id
         rv = self.app.get(path)
-        assert test_name in rv.data
-        assert test_grid_name in rv.data
-        assert test_grid_description in rv.data
+        assert self.test_name in rv.data
+        assert self.test_grid_name in rv.data
+        assert self.test_grid_description in rv.data
         path = '/gridz/%s/json' % schema_id
         rv = self.app.get(path)
         gridz = json.loads(rv.data)
-        assert test_name in gridz.keys()
-        self.assertEqual(1, len(gridz[test_name]))
-        self.assertEqual(grid_id, gridz[test_name][0]['id'])
-        self.assertEqual(test_grid_name, gridz[test_name][0]['name'])
-        self.assertEqual(test_grid_description, gridz[test_name][0]['description'])
+        assert self.test_name in gridz.keys()
+        self.assertEqual(1, len(gridz[self.test_name]))
+        self.assertEqual(grid_id, gridz[self.test_name][0]['id'])
+        self.assertEqual(self.test_grid_name, gridz[self.test_name][0]['name'])
+        self.assertEqual(self.test_grid_description, gridz[self.test_name][0]['description'])
         
     def test_grid(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        test_grid_name = "NEW GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(db, grid_fields)
-        db.commit()
+        self.insert_grid_fields(grid_fields)
+        self.db.commit()
         path = '/grid/%s/%s' % (schema_id,grid_id)
         rv = self.app.get(path)
-        assert test_name in rv.data
-        assert test_grid_name in rv.data
-        assert test_grid_description in rv.data
+        assert self.test_name in rv.data
+        assert self.test_grid_name in rv.data
+        assert self.test_grid_description in rv.data
         jq = pq(rv.data)
         for grid_field in grid_fields:
             if bool(grid_field[2]):
@@ -147,11 +134,8 @@ class GridzTestCase(unittest.TestCase):
                 assert grid_field[1] in jq("#filters").html()
 
     def test_new_grid(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         path = '/grid/%s/new' % (schema_id,)
         rv = self.app.get(path)
         jq = pq(rv.data)
@@ -160,13 +144,8 @@ class GridzTestCase(unittest.TestCase):
         assert jq.is_('ul#grid_fields')
 
     def test_create_grid(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        test_grid_name = "NEW GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         path = '/grid/%s/create' % (schema_id,)
         # post data does NOT support passing dict of dict, it thinks it is a file descriptor!!!
 #        grid_form_fields = [
@@ -174,12 +153,12 @@ class GridzTestCase(unittest.TestCase):
 #            {'is_queryable_by': ['attribute'], 'name': 'bar'}
 #        ]
         self.app.post(path, data={
-            'name':test_grid_name,
-            'description':test_grid_description
+            'name':self.test_grid_name,
+            'description':self.test_grid_description
 #            'grid_form_fields': grid_form_fields
             }, follow_redirects=True)
-        cur = db.execute('select count(*) from grids where schema_id = ? and name = ? and description = ?',
-                         (schema_id, test_grid_name, test_grid_description))
+        cur = self.db.execute('select count(*) from grids where schema_id = ? and name = ? and description = ?',
+                         (schema_id, self.test_grid_name, self.test_grid_description))
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(1, count)
@@ -194,29 +173,24 @@ class GridzTestCase(unittest.TestCase):
 #            if 'attribute' in grid_form_field['is_queryable_by']:
 #                is_attribute = 1
 #            grid_select.append(is_attribute)
-#            cur = db.execute('select count(*) from grid_fields where name = ? and is_filter = ? an is_attribute = ?', grid_select)
+#            cur = self.db.execute('select count(*) from grid_fields where name = ? and is_filter = ? an is_attribute = ?', grid_select)
 #            row = cur.fetchone()
 #            count = row[0]
 #            self.assertEqual(1, count)
 
     def test_destroy_grid(self):
-        test_name = "NEW SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        test_grid_name = "NEW GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(db, grid_fields)
-        db.commit()
+        self.insert_grid_fields(grid_fields)
+        self.db.commit()
         path = "/grid/%s/%s/destroy" % (schema_id,grid_id)
         rv = self.app.get(path,follow_redirects=True)
-        cur = db.execute('select count(*) from grids where name = ? and description = ?', (test_grid_name, test_grid_description))
+        cur = self.db.execute('select count(*) from grids where name = ? and description = ?', (self.test_grid_name, self.test_grid_description))
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(0, count)
-        cur = db.execute('select count(*) from grid_fields where grid_id = ?', (grid_id,))
+        cur = self.db.execute('select count(*) from grid_fields where grid_id = ?', (grid_id,))
         row = cur.fetchone()
         count = row[0]
         self.assertEqual(0, count)
@@ -228,22 +202,17 @@ class GridzTestCase(unittest.TestCase):
         resp = json.loads(rv.data)
         expected_message = "schema %s does not exist!" % 500
         self.assertEqual(expected_message, resp['error'])
-        test_name = "NEW_SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        db.commit()
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        self.db.commit()
         path = "/grid/%s/%s/_entry/create" % (schema_id,40)
         rv = self.app.post(path, data = json.dumps({}))
         resp = json.loads(rv.data)
         expected_message = "grid %s does not exist!" % 40
         self.assertEqual(expected_message, resp['error'])
-        test_grid_name = "NEW_GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(db, grid_fields)
-        db.commit()
+        self.insert_grid_fields(grid_fields)
+        self.db.commit()
         path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
         rv = self.app.post(path, data = json.dumps({}))
         resp = json.loads(rv.data)
@@ -254,29 +223,19 @@ class GridzTestCase(unittest.TestCase):
         resp_doc = json.loads(rv.data)
         assert '_id' in resp_doc.keys()
         new_id = resp_doc['_id']
-        client = MongoClient()
-        self.assertEqual(1, client[test_name][test_grid_name].find({'_id': ObjectId(new_id)}).count())
-        new_doc = client[test_name][test_grid_name].find_one({'_id': ObjectId(new_id)})
+        self.assertEqual(1, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(new_id)}).count())
+        new_doc = self.client[self.test_name][self.test_grid_name].find_one({'_id': ObjectId(new_id)})
         for key in document['document'].keys():
             self.assertEqual(document['document'][key], new_doc[key])
-        client[test_name][test_grid_name].remove()
-        client[test_name].drop_collection(test_grid_name)
-        client.drop_database(test_name)
 
     def test_get_entry(self):
-        test_name = "NEW_SCHEMA"
-        test_description = "THIS IS A NEW SCHEMA"
-        db = app.main.connect_db()
-        schema_id = self.insert_schema(db, [test_name,test_description])
-        test_grid_name = "NEW_GRID"
-        test_grid_description = "THIS IS A NEW GRID"
-        grid_id = self.insert_grid(db, [test_grid_name, schema_id, test_grid_description])
+        schema_id = self.insert_schema([self.test_name,self.test_description])
+        grid_id = self.insert_grid([self.test_grid_name, schema_id, self.test_grid_description])
         grid_fields = [[ grid_id, 'foo', 1, 0 ],[ grid_id, 'bar', 1, 0 ],[ grid_id, 'baz', 0, 1 ]]
-        self.insert_grid_fields(db, grid_fields)
-        db.commit()
-        client = MongoClient()
+        self.insert_grid_fields(grid_fields)
+        self.db.commit()
         new_document = {'foo': 'foo_value','baz': 3, 'bar': 'value baz'}
-        new_id = client[test_name][test_grid_name].insert(new_document)
+        new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
         
         path = "/grid/%s/%s/_entry" % (schema_id,grid_id)
         rv = self.app.post(path, data=json.dumps({}))
@@ -286,7 +245,7 @@ class GridzTestCase(unittest.TestCase):
 
         # TODO test that only grid attributes can be fields, and grid filters can be in query
         not_there = '52b85fb0e4ba084049f4f9db'
-        self.assertEqual(0, client[test_name][test_grid_name].find({'_id': ObjectId(not_there)}).count())
+        self.assertEqual(0, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(not_there)}).count())
         rv = self.app.post(path, data=json.dumps({'_id': not_there }))
         resp_doc = json.loads(rv.data)
         self.assertEqual({}, resp_doc)
@@ -322,10 +281,6 @@ class GridzTestCase(unittest.TestCase):
                 self.assertEqual(str(new_document[key]), str(resp_doc[key]))
             else:
                 assert key not in resp_doc.keys()
-
-        client[test_name][test_grid_name].remove()
-        client[test_name].drop_collection(test_grid_name)
-        client.drop_database(test_name)
 
 if __name__ == '__main__':
     unittest.main()
