@@ -1,3 +1,12 @@
+### TODO
+###  - create a historical view of each grid to accompany the definitive grid
+###  - updates should be expected to receive ONLY dirty fields
+###  - inserts and updates will insert a record with the userid and timestamp and all current values to the historical view of the grid
+###  - grids should have a published? boolean status in their meta data.
+###  - users can get_publication_status
+###  - inserts, updates to a published grid should fail with an error
+###  - write background jobs to regularly consolidate the most recent values for each record in an unpublished grid, using the historical view
+
 import sys
 import json
 from app import app
