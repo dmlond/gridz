@@ -1,22 +1,22 @@
 {% extends "layout.html" %}
 {% block body %}
-<h1>{{ schema.name }}.{{ grid.name }}<h1>
-<h2>{{ grid.description|safe }}</h2>
+<h1>{{ schema['name'] }}.{{ grid['name'] }}<h1>
+<h2>{{ grid['description']|safe }}</h2>
 <h3>Filters</h3>
 <ul id="filters">
-  {% for filter in grid_filters %}
+  {% for filter in grid['fields'].keys() if grid['fields'][filter]['is_filter'] %}
   <li>{{ filter }}</li>
   {% endfor %}
 </ul>
 
 <h3>Attributes<h3>
 <ul id="attributes">
-  {% for attribute in grid_attributes %}
+  {% for attribute in grid['fields'].keys() if grid['fields'][attribute]['is_attribute'] %}
   <li>{{ attribute }}</li>
   {% endfor %}
 </ul>
 
-<a href="{{ url_for('destroy_grid',schema_id=schema.id,id=grid.id) }}">Destroy</a>
-<a href="{{ url_for('gridz', schema_id=schema.id) }}">Gridz</a>
+<a href="{{ url_for('destroy_grid',schema_id=schema['_id'],id=grid['_id']) }}">Destroy</a>
+<a href="{{ url_for('gridz', schema_id=schema['_id']) }}">Gridz</a>
 <a href="{{ url_for('schemas') }}">Schemas</a>
 {% endblock %}

@@ -1,7 +1,6 @@
 from flask import Flask
 
 # configuration
-DATABASE = '/tmp/gridz.db'
 DEBUG = True
 SECRET_KEY = 'aeoffoxxx11'
 

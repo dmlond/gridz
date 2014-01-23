@@ -2,13 +2,13 @@
 {% block body %}
 <p>
   <strong>Name:</strong>
-  {{ schema.name }}
+  {{ schema['name'] }}
 </p>
 <p>
   <strong>Description:</strong>
-  {{ schema.description|safe }}
+  {{ schema['description']|safe }}
 </p>
-<a href="{{ url_for('destroy_schema',id=schema.id) }}">Destroy Schema</a>
-<a href="{{ url_for('gridz', schema_id=schema.id) }}">Gridz</a>
+<a href="{{ url_for('destroy_schema',id=schema['_id']) }}">Destroy Schema</a>
+<a href="{{ url_for('gridz', schema_id=schema['_id']) }}">Gridz</a>
 <a href="{{ url_for('schemas') }}">Schemas</a>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% block body %}
   <script src="{{ url_for('static', filename='js/add_grid_field.js') }}"></script>
   <h1>New Schema {{ schema.name }} Grid</h1>
-  <form action="{{ url_for('create_grid', schema_id=schema.id) }}" method=post>
+  <form action="{{ url_for('create_grid', schema_id=schema['_id']) }}" method=post>
     {{ form.hidden_tag() }}
     <h3>Describe Grid<h3>
     <dl>
@@ -23,6 +23,6 @@
       {% endfor %}
 	<li id="add_grid_field_target"><a id="add_grid_field" href="#">Add Field</a></li>
     </ul>
-    {{ form.submit }}<a href="{{ url_for('gridz',schema_id=schema.id) }}">Cancel</a>
+    {{ form.submit }}<a href="{{ url_for('gridz',schema_id=schema['_id']) }}">Cancel</a>
   </form>
 {% endblock %}
