@@ -7,6 +7,8 @@
 ###  - inserts, updates to a published grid should fail with an error
 ###  - write background jobs to regularly consolidate the most recent values for each record in an unpublished grid, using the historical view
 ###  - can we use a write_concern to find out how many entries are updated or removed from update/remove_entry
+###  - create system to allow per-user access to attributes and filters, e.g. one user can see all fields as attributes or filters, but other
+###    user can only see and use a subset because it is PHI
 
 import sys
 import json
@@ -43,6 +45,11 @@ def stringify_ids(docs):
     for doc in docs:
         if '_id' in doc.keys():
             doc['_id'] = str(doc['_id'])
+
+def objectify_ids(docs):
+    for doc in docs:
+        if '_id' in doc.keys():
+            doc['_id'] = ObjectId(doc['_id'])
 
 @app.before_request
 def before_request():
@@ -197,7 +204,6 @@ def query_grid(schema_id,id):
 def edit_data(schema_id,id):
     schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
     grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
-    #TODO test query for filterable fields
     entries = None
     if request.method == 'POST':
         attributes = { attribute: True for attribute in request.arg.get('attributes') if grid['field'][attribute]['is_attribute'] }
@@ -216,7 +222,7 @@ def edit_data(schema_id,id):
     columns = [ dict(id=field_name, name=field_name, field=field_name) for field_name in grid['fields'].keys() ]
     return render_template('edit_data.html', schema=schema, grid=grid, columns=columns, entries=entries)
 
-# REST AJAX UI
+# SINGLE ENTRY REST
 @app.route('/grid/<schema_id>/<id>/_entry', methods=['POST'])
 def get_entry(schema_id,id):
     schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
@@ -285,17 +291,17 @@ def create_entry(schema_id,id):
         return dumps({'error': error}), 500
 
     request_json =  json.loads(request.data)
-    if 'document' in request_json.keys():
-        document = request_json['document']
-        for field in document.keys():
-          if field not in grid['fields'].keys():
+    if 'document' not in request_json.keys():
+        return dumps({'error': 'please supply a document to insert!'})
+
+    document = request_json['document']
+    for field in document.keys():
+        if field not in grid['fields'].keys():
             error = "schema %s grid %s does not support field %s" % (schema['name'], grid['name'], field)
             return dumps({'error': error}), 500
 
-        new_insert = g.client[schema['name']][grid['name']].insert(document)
-        return dumps({'_id': str(new_insert)})
-    else:
-        return dumps({'error': 'please supply a document to insert!'})
+    new_insert = g.client[schema['name']][grid['name']].insert(document)
+    return dumps({'_id': str(new_insert)})
 
 @app.route('/grid/<schema_id>/<id>/_entry/update', methods=['POST'])
 def update_entry(schema_id,id):
@@ -310,29 +316,29 @@ def update_entry(schema_id,id):
         return dumps({'error': error}), 500
 
     request_json =  json.loads(request.data)
-    if 'document' in request_json.keys():
-        document = request_json['document']
-        if 'update' not in document.keys():
-            return dumps({'error': 'please supply a document[update] update hash of attributes and values to update'}), 500
+    if 'document' not in request_json.keys():
+        return dumps({'error': 'This method updates a single entry with a supplied document hash of update and query.  please supply a document to update!'})
+    
+    document = request_json['document']
+    if 'update' not in document.keys():
+        return dumps({'error': 'please supply a document[update] update hash of attributes and values to update'}), 500
 
-        for attribute in document['update'].keys():
-            if not grid['fields'][attribute]['is_attribute']:
-                return dumps({'error': 'schema %s grid %s does not support attribute %s' % (schema['name'], grid['name'], attribute)})
+    if 'query' not in document.keys():
+        return dumps({'error': 'please supply a document[query] hash of key value pairs to find the document to update'}), 500
+        
+    for attribute in document['update'].keys():
+        if attribute not in grid['fields'].keys():
+            return dumps({'error': 'schema %s grid %s does not support field %s' % (schema['name'], grid['name'], attribute)})
 
-        if 'query' in document.keys():
-            for filter in document['query'].keys():
-                if filter == '_id':
-                    document['query']['_id'] = ObjectId(document['query']['_id'])
-                else:
-                    if not grid['fields'][filter]['is_filter']:
-                        error = "schema %s grid %s does not support filter %s" % (schema['name'], grid['name'], filter)
-                        return dumps({'error': error}), 500
+    for filter in document['query'].keys():
+        if filter == '_id':
+            document['query']['_id'] = ObjectId(document['query']['_id'])
         else:
-            document['query'] = {}
+            if not grid['fields'][filter]['is_filter']:
+                error = "schema %s grid %s does not support filter %s" % (schema['name'], grid['name'], filter)
+                return dumps({'error': error}), 500
 
-        return dumps(g.client[schema['name']][grid['name']].update(document['query'],{'$set': document['update']}, multi=True))
-    else:
-        return dumps({'error': 'please supply a document to update!'})
+    return dumps(g.client[schema['name']][grid['name']].update(document['query'],{'$set': document['update']}))
 
 @app.route('/grid/<schema_id>/<id>/_entry/remove', methods=['POST'])
 def remove_entry(schema_id,id):
@@ -347,19 +353,127 @@ def remove_entry(schema_id,id):
         return dumps({'error': error}), 500
 
     request_json =  json.loads(request.data)
-    if 'document' in request_json.keys():
-        document = request_json['document']
-        if 'query' in document.keys():
-            for filter in document['query'].keys():
-                if filter == '_id':
-                    document['query']['_id'] = ObjectId(document['query']['_id'])
-                else:
-                    if not grid['fields'][filter]['is_filter']:
-                        error = "schema %s grid %s does not support filter %s" % (schema['name'], grid['name'], filter)
-                        return dumps({'error': error}), 500
-                    
-            return dumps(g.client[schema['name']][grid['name']].remove(document['query']))
+    query = None
+    if '_id' not in request_json.keys():
+        return dumps({'error': 'please supply an _id of the entry to remove'}), 500
+
+    query = {'_id': ObjectId(request_json['_id']) }
+    return dumps(g.client[schema['name']][grid['name']].remove(query))
+
+# MULTI ENTRY REST
+@app.route('/grid/<schema_id>/<id>/_entries', methods=['POST'])
+def get_entries(schema_id,id):
+    schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return dumps({'error': error}), 500
+
+    grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return dumps({'error': error}), 500
+
+    request_json = loads(request.data)
+    query = None
+    if 'query' in request_json.keys():
+        for filter in request_json['query'].keys():
+            if filter not in grid['fields'].keys():
+                message = "%s is not a supported filter of this grid" % filter
+                return dumps({'error': message}), 500
+            if not grid['fields'][filter]['is_filter']:
+                message = "%s is not a supported filter of this grid" % filter
+                return jsonify({'error': message}), 500
+        query = request_json['query']
+
+    ret_doc = None
+    if 'fields' in request_json.keys():
+        requested_attributes = {}
+        for attribute in request_json['fields']:
+            if attribute != '_id':
+                if attribute not in grid['fields'].keys():
+                    message = "%s is not a supported attribute of this grid" % attribute
+                    return dumps({'error': message}), 500
+                if not grid['fields'][attribute]['is_attribute']:
+                    message = "%s is not a supported attribute of this grid" % key
+                    return dumps({'error': message}), 500
+            requested_attributes[attribute] = True
+
+        if '_id' in request_json['fields']:
+            requested_attributes['_id'] = True
         else:
-          return dumps({'error': 'please supply a document[query] hash of fields and values to query to remove a document'}), 500
+            requested_attributes['_id'] = False
+        ret_doc = list(g.client[schema['name']][grid['name']].find(query, fields=requested_attributes, exhaust=True))
     else:
-        return dumps({'error': 'please supply a document to update!'}), 500
+        ret_doc = list(g.client[schema['name']][grid['name']].find(query, exhaust=True))
+
+    if ret_doc is None:
+        return dumps({})
+
+    stringify_ids(ret_doc)
+    return dumps(ret_doc)
+
+@app.route('/grid/<schema_id>/<id>/_entries/update', methods=['POST'])
+def update_entries(schema_id,id):
+    schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return dumps({'error': error}), 500
+
+    grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return dumps({'error': error}), 500
+
+    request_json =  json.loads(request.data)
+    if 'document' not in request_json.keys():
+        return dumps({'error': 'please supply a document to update!'})
+    
+    document = request_json['document']
+    if 'update' not in document.keys():
+        return dumps({'error': 'please supply a document[update] update hash of attributes and values to update'}), 500
+
+    if 'query' not in document.keys():
+        return dumps({'error': 'please supply a document[query] hash of key value pairs to find documents to update'}), 500
+        
+    for attribute in document['update'].keys():
+        if not grid['fields'][attribute]['is_attribute']:
+            return dumps({'error': 'schema %s grid %s does not support attribute %s' % (schema['name'], grid['name'], attribute)})
+
+    for filter in document['query'].keys():
+        if filter == '_id':
+            document['query']['_id'] = ObjectId(document['query']['_id'])
+        else:
+            if not grid['fields'][filter]['is_filter']:
+                error = "schema %s grid %s does not support filter %s" % (schema['name'], grid['name'], filter)
+                return dumps({'error': error}), 500
+
+    return dumps(g.client[schema['name']][grid['name']].update(document['query'],{'$set': document['update']}, multi=True))
+
+@app.route('/grid/<schema_id>/<id>/_entries/remove', methods=['POST'])
+def remove_entries(schema_id,id):
+    schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
+    if schema is None:
+        error = "schema %s does not exist!" % schema_id
+        return dumpsa({'error': error}), 500
+
+    grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
+    if grid is None:
+        error = "grid %s does not exist!" % id
+        return dumps({'error': error}), 500
+
+    query = None
+    request_json =  json.loads(request.data)
+    if 'query' in request_json.keys():
+        for filter in request_json['query'].keys():
+            if filter == '_id':
+                request_json['query']['_id'] = ObjectId(request_json['query']['_id'])
+            else:
+                if not grid['fields'][filter]['is_filter']:
+                    error = "schema %s grid %s does not support filter %s" % (schema['name'], grid['name'], filter)
+                    return dumps({'error': error}), 500
+        query = request_json['query']
+    else:
+        if 'all' not in request_json.keys():
+            return dumps({'error': 'you must supply a hash with {"all":"true"} to remove all entries'})
+
+    return dumps(g.client[schema['name']][grid['name']].remove(query))

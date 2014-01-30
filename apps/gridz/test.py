@@ -45,6 +45,8 @@ class GridzTestCase(unittest.TestCase):
         self.client.drop_database(self.test_name)
         self.client.drop_database('testing_schemas')
 
+    # FRONT END TESTS
+    ## Schema Management
     def test_schemas(self):
         new_id = self.insert_schema()
         rv = self.app.get('/')
@@ -94,7 +96,8 @@ class GridzTestCase(unittest.TestCase):
         rv = self.app.get(path,follow_redirects=True)
         count = self.client['testing_schemas']['definitions'].find({'name': self.test_name, 'description': self.test_description}).count()
         self.assertEqual(0, count)
-        
+
+        ## Grid Management
     def test_gridz(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid()
@@ -177,38 +180,12 @@ class GridzTestCase(unittest.TestCase):
         count = self.client[self.test_name]['grids'].find({'name': self.test_grid_name, 'description': self.test_grid_description}).count()
         self.assertEqual(0, count)
 
-    #REST
-    def test_create_grid_entry(self):
-        path = "/grid/%s/%s/_entry/create" % (self.not_there,self.not_there)
-        rv = self.app.post(path, content_type = 'application/json', data = dumps({}))
-        resp = loads(rv.data)
-        expected_message = "schema %s does not exist!" % self.not_there
-        self.assertEqual(expected_message, resp['error'])
+# DATA
+#test_view_data
+#test_query_grid
+#test_edit_data
 
-        schema_id = self.insert_schema()
-        path = "/grid/%s/%s/_entry/create" % (schema_id,self.not_there)
-        rv = self.app.post(path, data = dumps({}))
-        resp = loads(rv.data)
-        expected_message = "grid %s does not exist!" % self.not_there
-        self.assertEqual(expected_message, resp['error'])
-
-        grid_id = self.insert_grid()
-        path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
-        rv = self.app.post(path, data = dumps({}))
-        resp = loads(rv.data)
-        expected_message = "please supply a document to insert!"
-        self.assertEqual(expected_message, resp['error'])
-
-        document = {'document': {'foo': 'foo_value','bar': 3, 'baz': 'value baz'}}
-        rv = self.app.post(path, data = dumps(document))
-        resp_doc = loads(rv.data)
-        assert '_id' in resp_doc.keys()
-        new_id = resp_doc['_id']
-        self.assertEqual(1, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(new_id)}).count())
-        new_doc = self.client[self.test_name][self.test_grid_name].find_one({'_id': ObjectId(new_id)})
-        for key in document['document'].keys():
-            self.assertEqual(document['document'][key], new_doc[key])
-
+# SINGLE ENTRY REST
     def test_get_entry(self):
         schema_id = self.insert_schema()
         grid_id = self.insert_grid()
@@ -263,6 +240,91 @@ class GridzTestCase(unittest.TestCase):
                 self.assertEqual(str(new_document[key]), str(resp_doc[key]))
             else:
                 assert key not in resp_doc.keys()
+
+    def test_create_grid_entry(self):
+        path = "/grid/%s/%s/_entry/create" % (self.not_there,self.not_there)
+        rv = self.app.post(path, content_type = 'application/json', data = dumps({}))
+        resp = loads(rv.data)
+        expected_message = "schema %s does not exist!" % self.not_there
+        self.assertEqual(expected_message, resp['error'])
+
+        schema_id = self.insert_schema()
+        path = "/grid/%s/%s/_entry/create" % (schema_id,self.not_there)
+        rv = self.app.post(path, data = dumps({}))
+        resp = loads(rv.data)
+        expected_message = "grid %s does not exist!" % self.not_there
+        self.assertEqual(expected_message, resp['error'])
+
+        grid_id = self.insert_grid()
+        path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
+        rv = self.app.post(path, data = dumps({}))
+        resp = loads(rv.data)
+        expected_message = "please supply a document to insert!"
+        self.assertEqual(expected_message, resp['error'])
+
+        document = {'document': {'foo': 'foo_value','bar': 3, 'baz': 'value baz'}}
+        rv = self.app.post(path, data = dumps(document))
+        resp_doc = loads(rv.data)
+        assert '_id' in resp_doc.keys()
+        new_id = resp_doc['_id']
+        self.assertEqual(1, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(new_id)}).count())
+        new_doc = self.client[self.test_name][self.test_grid_name].find_one({'_id': ObjectId(new_id)})
+        for key in document['document'].keys():
+            self.assertEqual(document['document'][key], new_doc[key])
+
+    def test_update_entry(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        initial_foo_value = 'foo_value'
+        initial_baz_value = 3
+        initial_bar_value = 'value baz'
+        
+        new_document = {'foo': initial_foo_value,'baz': initial_baz_value, 'bar': initial_bar_value}
+        new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
+        
+        path = "/grid/%s/%s/_entry/update" % (schema_id,grid_id)
+        rv = self.app.post(path, data=dumps({}))
+        resp = loads(rv.data)
+        expected_message = 'This method updates a single entry with a supplied document hash of update and query.  please supply a document to update!'
+        self.assertEqual(expected_message, resp['error'])
+
+        document = {'document': {}}
+        rv = self.app.post(path, data=dumps(document))
+        resp = loads(rv.data)
+        expected_message = 'please supply a document[update] update hash of attributes and values to update'
+        self.assertEqual(expected_message, resp['error'])
+
+        new_foo_value = "THIS IS A NEW FOO VALUE"
+        new_baz_value = 50
+        document['document']['update'] = { 'foo': new_foo_value, 'baz': new_baz_value }
+        rv = self.app.post(path, data=dumps(document))
+        resp = loads(rv.data)
+        expected_message = 'please supply a document[query] hash of key value pairs to find the document to update'
+        self.assertEqual(expected_message, resp['error'])
+        test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
+        self.assertEqual(initial_foo_value, test_data['foo'])
+        self.assertEqual(initial_baz_value, test_data['baz'])
+
+        document['document']['query'] = { '_id': str(new_id) }
+        rv = self.app.post(path, data=dumps(document))
+        resp = loads(rv.data)
+        test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
+        self.assertEqual(new_foo_value, test_data['foo'])
+        self.assertEqual(new_baz_value, test_data['baz'])
+
+        new_bar_value = 'value blaz'
+        document['document']['update'] = { 'bar': new_bar_value }
+        document['document']['query'] = { 'baz' : new_baz_value }
+        rv = self.app.post(path, data=dumps(document))
+        test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
+        self.assertEqual(new_bar_value, test_data['bar'])
+
+#test_remove_entry
+
+# MULTI ENTRY REST
+#test_get_entries
+#test_update_entries
+#test_remove_entries
 
 if __name__ == '__main__':
     unittest.main()
