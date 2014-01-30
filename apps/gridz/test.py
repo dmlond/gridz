@@ -28,7 +28,7 @@ class GridzTestCase(unittest.TestCase):
         self.test_grid_name = "NEW_GRID"
         self.grid_fields =  {
             'foo': { 'is_attribute': True, 'is_filter': False },
-            'bar': { 'is_attribute': True, 'is_filter': False},
+            'bar': { 'is_attribute': True, 'is_filter': True},
             'baz': { 'is_attribute': False, 'is_filter': True }
         }
         self.test_grid_description = "THIS IS A NEW GRID"
@@ -193,7 +193,7 @@ class GridzTestCase(unittest.TestCase):
         new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
         
         path = "/grid/%s/%s/_entry" % (schema_id,grid_id)
-        rv = self.app.post(path, data=dumps({}))
+        rv = self.app.post(path)
         resp = loads(rv.data)
         expected_message = 'please supply either a document ID with the _id key, or a query!'
         self.assertEqual(expected_message, resp['error'])
@@ -241,23 +241,23 @@ class GridzTestCase(unittest.TestCase):
             else:
                 assert key not in resp_doc.keys()
 
-    def test_create_grid_entry(self):
+    def test_create_entry(self):
         path = "/grid/%s/%s/_entry/create" % (self.not_there,self.not_there)
-        rv = self.app.post(path, content_type = 'application/json', data = dumps({}))
+        rv = self.app.post(path, content_type = 'application/json')
         resp = loads(rv.data)
         expected_message = "schema %s does not exist!" % self.not_there
         self.assertEqual(expected_message, resp['error'])
 
         schema_id = self.insert_schema()
         path = "/grid/%s/%s/_entry/create" % (schema_id,self.not_there)
-        rv = self.app.post(path, data = dumps({}))
+        rv = self.app.post(path)
         resp = loads(rv.data)
         expected_message = "grid %s does not exist!" % self.not_there
         self.assertEqual(expected_message, resp['error'])
 
         grid_id = self.insert_grid()
         path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
-        rv = self.app.post(path, data = dumps({}))
+        rv = self.app.post(path)
         resp = loads(rv.data)
         expected_message = "please supply a document to insert!"
         self.assertEqual(expected_message, resp['error'])
@@ -283,7 +283,7 @@ class GridzTestCase(unittest.TestCase):
         new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
         
         path = "/grid/%s/%s/_entry/update" % (schema_id,grid_id)
-        rv = self.app.post(path, data=dumps({}))
+        rv = self.app.post(path)
         resp = loads(rv.data)
         expected_message = 'This method updates a single entry with a supplied document hash of update and query.  please supply a document to update!'
         self.assertEqual(expected_message, resp['error'])
@@ -319,12 +319,166 @@ class GridzTestCase(unittest.TestCase):
         test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
         self.assertEqual(new_bar_value, test_data['bar'])
 
-#test_remove_entry
+    def test_remove_entry(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        new_document = {'foo': 3,'baz': 'value baz', 'bar': 10}
+        new_id = self.client[self.test_name][self.test_grid_name].insert(new_document)
+
+        path = "/grid/%s/%s/_entry/remove" % (schema_id,grid_id)
+        rv = self.app.post(path)
+        resp = loads(rv.data)
+        expected_message = 'This method removes a single entry based on its objectid.  please supply a hash with key _id of the entry to remove'
+        self.assertEqual(expected_message, resp['error'])
+
+        document = {'_id': str(new_id)}
+        rv = self.app.post(path, data=dumps(document))
+        resp = loads(rv.data)
+        count = self.client[self.test_name][self.test_grid_name].find({'_id': new_id}).count()
+        self.assertEqual(0, count)
 
 # MULTI ENTRY REST
-#test_get_entries
-#test_update_entries
-#test_remove_entries
+    def test_get_entries(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        new_documents = [
+            {'foo': x,'baz': '%s baz' % x, 'bar': x * 10} for x in range(1,10)
+        ]
+        new_ids = self.client[self.test_name][self.test_grid_name].insert(new_documents)
+        self.assertEqual(len(new_documents), len(new_ids))
+        
+        initial_count = self.client[self.test_name][self.test_grid_name].find(None,exhaust=True).count()
+        self.assertEqual(len(new_documents), initial_count)
+        path = "/grid/%s/%s/_entries" % (schema_id,grid_id)
+        rv = self.app.post(path)
+        entries = loads(rv.data)
+        self.assertEqual(initial_count, len(entries))
+
+        document = {'query': {'baz': '3 baz'}}
+        initial_count = self.client[self.test_name][self.test_grid_name].find(document['query'],exhaust=True).count()
+        self.assertEqual(1, initial_count)
+        rv = self.app.post(path, data=dumps(document))
+        entries = loads(rv.data)
+        self.assertEqual(initial_count, len(entries))
+        for entry in entries:
+            assert('foo' in entry.keys())
+            assert('bar' in entry.keys())
+            assert('_id' in entry.keys())
+
+        document = {'fields': ['foo']}
+        initial_count = self.client[self.test_name][self.test_grid_name].find(None,document['fields'],exhaust=True).count()
+        self.assertEqual(len(new_documents), initial_count)
+        rv = self.app.post(path, data=dumps(document))
+        entries = loads(rv.data)
+        self.assertEqual(initial_count, len(entries))
+        for entry in entries:
+            assert('foo' in entry.keys())
+            assert('bar' not in entry.keys())
+            assert('_id' not in entry.keys())
+
+    def test_create_entries(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        new_documents = [
+            {'foo': x,'baz': '%s baz' % x, 'bar': x * 10} for x in range(1,10)
+        ]
+        
+        path = "/grid/%s/%s/_entries/create" % (schema_id,grid_id)
+        rv = self.app.post(path)
+        resp = loads(rv.data)
+        expected_message = 'This method allows you to create multiple entries with a documents array.  please supply a document to insert!'
+        self.assertEqual(expected_message, resp['error'])
+
+        rv = self.app.post(path, data = dumps({'documents': new_documents}))
+        new_ids = loads(rv.data)
+        self.assertEqual(len(new_documents), len(new_ids))
+        idx = 0
+        for new_id in new_ids:
+            self.assertEqual(1, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(new_id)}).count())
+            new_doc = self.client[self.test_name][self.test_grid_name].find_one({'_id': ObjectId(new_id)})
+            for key in new_documents[idx].keys():
+              self.assertEqual(new_documents[idx][key], new_doc[key])
+            idx += 1
+        self.assertEqual(idx, len(new_documents))
+
+    def test_update_entries(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        new_documents = [
+            {'foo': x,'baz': '%s baz' % x, 'bar': x * 10} for x in range(1,10)
+        ]
+        new_ids = self.client[self.test_name][self.test_grid_name].insert(new_documents)
+        self.assertEqual(len(new_documents), len(new_ids))
+
+        path = "/grid/%s/%s/_entries/update" % (schema_id,grid_id)
+        rv = self.app.post(path)
+        resp = loads(rv.data)
+        expected_message = 'This method updates multiple entries with a supplied document hash of update and query. please supply a document to update!'
+        self.assertEqual(expected_message, resp['error'])
+
+        rv = self.app.post(path, data=dumps({'document': {}}))
+        resp = loads(rv.data)
+        expected_message = 'please supply a document[update] hash of attributes and values to update'
+        self.assertEqual(expected_message, resp['error'])
+
+        new_bar_value = 44
+        document = {
+            'document': {
+                'update': {
+                    'bar': new_bar_value
+                }
+            }
+        }
+        rv = self.app.post(path, data=dumps(document))
+        resp = loads(rv.data)
+        expected_message = 'please supply a document[query] hash of key value pairs to find documents to update'
+        self.assertEqual(expected_message, resp['error'])
+
+        document = {
+            'document': {
+                'update': {
+                    'bar': new_bar_value
+                },
+                'query': {
+                    'baz': { '$regex': '.*baz' }
+                }
+            }
+        }
+
+        rv = self.app.post(path, data=dumps(document))
+        entries = list(self.client[self.test_name][self.test_grid_name].find(None,exhaust=True))
+        self.assertEqual(len(new_documents), len(entries))
+        for entry in entries:
+            self.assertEqual(new_bar_value, entry['bar'])
+        
+    def test_remove_entries(self):
+        schema_id = self.insert_schema()
+        grid_id = self.insert_grid()
+        new_documents = [
+            {'foo': x,'baz': '%s baz' % x, 'bar': x * 10} for x in range(1,10)
+        ]
+        new_ids = self.client[self.test_name][self.test_grid_name].insert(new_documents)
+        self.assertEqual(len(new_documents), len(new_ids))
+
+        path = "/grid/%s/%s/_entries/remove" % (schema_id,grid_id)
+        rv = self.app.post(path)
+        resp = loads(rv.data)
+        expected_message = 'This method removes multiple entries. Please supply a query with fields to filter removed entries, or {"all":"true"} to remove all entries'
+        self.assertEqual(expected_message, resp['error'])
+
+        self.app.post(path, data=dumps({'all': 'true'}))
+        self.assertEqual(0, self.client[self.test_name][self.test_grid_name].find().count())
+
+        new_ids = self.client[self.test_name][self.test_grid_name].insert(new_documents)
+        self.assertEqual(len(new_documents), len(new_ids))
+
+        self.app.post(path, data=dumps({
+            'query': {'bar': {'$gt': 50}}
+        }))
+        entries = self.client[self.test_name][self.test_grid_name].find()
+        self.assertEqual(5, entries.count())
+        for entry in entries:
+            assert entry['bar'] <= 50
 
 if __name__ == '__main__':
     unittest.main()
