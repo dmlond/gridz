@@ -259,7 +259,7 @@ def get_entry(schema_id,id):
                 return dumps({'error': message}), 500
             if not grid['fields'][filter]['is_filter']:
                 message = "%s is not a supported filter of this grid" % filter
-                return jsonify({'error': message}), 500
+                return dumps({'error': message}), 500
         query = request_json['query']
     else:
         return dumps({'error': 'please supply either a document ID with the _id key, or a query!'}), 500
@@ -407,7 +407,7 @@ def get_entries(schema_id,id):
                 return dumps({'error': message}), 500
             if not grid['fields'][filter]['is_filter']:
                 message = "%s is not a supported filter of this grid" % filter
-                return jsonify({'error': message}), 500
+                return dumps({'error': message}), 500
         query = request_json['query']
 
     ret_doc = None
