@@ -172,8 +172,8 @@ def destroy_grid(schema_id,id):
     return redirect(url_for('gridz',schema_id=schema_id))
 
 #DATA
-@app.route('/gridz/<schema_id>/<id>/data', methods=['GET','POST'])
-@app.route('/gridz/<schema_id>/<id>/data/<type>', methods=['GET','POST'])
+@app.route('/grid/<schema_id>/<id>/data', methods=['GET','POST'])
+@app.route('/grid/<schema_id>/<id>/data/<type>', methods=['GET','POST'])
 def view_data(schema_id,id,type=None):
     schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
     grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
@@ -197,7 +197,7 @@ def view_data(schema_id,id,type=None):
     stringify_ids([schema,grid] + entries)
     if type is None:
         columns = [ dict(id=field_name, name=field_name, field=field_name) for field_name in grid['fields'].keys() ]
-        return render_template('grid_data.html', schema=schema, grid=grid, columns=columns, entries=entries)
+        return render_template('grid_data.html', schema=schema, grid=grid, columns=dumps(columns), entries=dumps(entries))
     else:
         if type == 'csv':
             columns = grid['fields'].keys()
@@ -205,12 +205,12 @@ def view_data(schema_id,id,type=None):
         else:
             return dumps(entries)
 
-@app.route('/gridz/<schema_id>/<id>/data/query')
+@app.route('/grid/<schema_id>/<id>/data/query')
 def query_grid(schema_id,id):
     # render form to query based on grid attributes and filters with action url_for('view_data')
     return render_template('query_grid.html')
 
-@app.route('/gridz/<schema_id>/<id>/data/edit')
+@app.route('/grid/<schema_id>/<id>/data/edit')
 def edit_data(schema_id,id):
     schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
     grid =  g.client[schema['name']]['grids'].find_one({'_id': ObjectId(id)})
