@@ -195,28 +195,28 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entry" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'please supply either a document ID with the _id key, or a query!'
+        expected_message = "please supply application/json contentType data with either an _id key, or a query key"
         self.assertEqual(expected_message, resp['error'])
 
         self.assertEqual(0, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(self.not_there)}).count())
-        rv = self.app.post(path, data=dumps({'_id': self.not_there }))
+        rv = self.app.post(path, data=dumps({'_id': self.not_there }), content_type='application/json')
         resp_doc = loads(rv.data)
         self.assertEqual({}, resp_doc)
     
-        rv = self.app.post(path, data=dumps({'_id': str(new_id)}))
+        rv = self.app.post(path, data=dumps({'_id': str(new_id)}), content_type='application/json')
         resp_doc = loads(rv.data)
         for key in new_document.keys():
             assert key in resp_doc.keys()
             self.assertEqual(str(new_document[key]), str(resp_doc[key]))
 
         bad_fields = ['not_in_fields']
-        rv = self.app.post(path, data=dumps({'_id': str(new_id), 'fields': bad_fields}))
+        rv = self.app.post(path, data=dumps({'_id': str(new_id), 'fields': bad_fields}), content_type='application/json')
         resp = loads(rv.data)
         expected_message = "%s is not a supported attribute of this grid" % bad_fields[0]
         self.assertEqual(expected_message, resp['error'])
         
         fields = ['foo','bar']
-        rv = self.app.post(path, data=dumps({'_id': str(new_id), 'fields': fields}))
+        rv = self.app.post(path, data=dumps({'_id': str(new_id), 'fields': fields}), content_type='application/json')
         resp_doc = loads(rv.data)
         for key in new_document.keys():
             if key in fields:
@@ -226,13 +226,13 @@ class GridzTestCase(unittest.TestCase):
                 assert key not in resp_doc.keys()
 
         query = {'baz': {'$gt': 2}}
-        rv = self.app.post(path, data=dumps({'query': query}))
+        rv = self.app.post(path, data=dumps({'query': query}), content_type='application/json')
         resp_doc = loads(rv.data)
         for key in new_document.keys():
             assert key in resp_doc.keys()
             self.assertEqual(str(new_document[key]), str(resp_doc[key]))
 
-        rv = self.app.post(path, data=dumps({'query': query, 'fields': fields}))
+        rv = self.app.post(path, data=dumps({'query': query, 'fields': fields}), content_type='application/json')
         resp_doc = loads(rv.data)
         for key in new_document.keys():
             if key in fields:

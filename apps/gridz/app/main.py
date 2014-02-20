@@ -192,7 +192,7 @@ def view_data(schema_id,id,type=None):
                 
         entries = list(g.client[schema['name']][grid['name']].find(request.arg.get('query'),fields=attributes, exhaust=True))
     else:
-        entries = list(g.client[schema['name']][grid['name']].find(None,exhaust=True))
+        entries = list(g.client[schema['name']][grid['name']].find(None,fields={'_id': True}, exhaust=True))
 
     stringify_ids([schema,grid] + entries)
     if type is None:
@@ -233,6 +233,10 @@ def edit_data(schema_id,id):
     return render_template('edit_data.html', schema=schema, grid=grid, columns=columns, entries=entries)
 
 # SINGLE ENTRY REST
+@app.route('/foo', methods=['POST'])
+def foo():
+    return dumps({'got': request.json})
+
 @app.route('/grid/<schema_id>/<id>/_entry', methods=['POST'])
 def get_entry(schema_id,id):
     schema = g.client[g.schema_db]['definitions'].find_one({'_id': ObjectId(schema_id)})
@@ -245,29 +249,27 @@ def get_entry(schema_id,id):
         error = "grid %s does not exist!" % id
         return dumps({'error': error}), 500
 
-    request_json = {}
-    if request.data:
-        request_json = loads(request.data)
+    if request.json is None:
+        return dumps({'error': "please supply application/json contentType data with either an _id key, or a query key"}), 500
 
-    query = None
-    if '_id' in request_json.keys():
-        query = {'_id': ObjectId(request_json['_id']) }
-    elif 'query' in request_json.keys():
-        for filter in request_json['query'].keys():
+    if '_id' in request.json.keys():
+        query = {'_id': ObjectId(request.json['_id']) }
+    elif 'query' in request.json.keys():
+        for filter in request.json['query'].keys():
             if filter not in grid['fields'].keys():
                 message = "%s is not a supported filter of this grid" % filter
                 return dumps({'error': message}), 500
             if not grid['fields'][filter]['is_filter']:
                 message = "%s is not a supported filter of this grid" % filter
                 return dumps({'error': message}), 500
-        query = request_json['query']
+        query = request.json['query']
     else:
         return dumps({'error': 'please supply either a document ID with the _id key, or a query!'}), 500
 
     ret_doc = None
-    if 'fields' in request_json.keys():
+    if 'fields' in request.json.keys():
         requested_attributes = {}
-        for attribute in request_json['fields']:
+        for attribute in request.json['fields']:
             if attribute != '_id':
                 if attribute not in grid['fields'].keys():
                     message = "%s is not a supported attribute of this grid" % attribute
@@ -277,7 +279,7 @@ def get_entry(schema_id,id):
                     return dumps({'error': message}), 500
             requested_attributes[attribute] = True
 
-        if '_id' in request_json['fields']:
+        if '_id' in request.json['fields']:
             requested_attributes['_id'] = True
         else:
             requested_attributes['_id'] = False
