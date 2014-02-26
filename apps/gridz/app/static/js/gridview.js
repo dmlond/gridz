@@ -31,11 +31,51 @@
 	    return null;
 	}
 
+        function cellChangeHandler(e, args) {
+            var item_url = '/grid/'+ options.schema_id + '/' + options.grid_id + '/_entry/update'
+            var changed_field = args.grid.getColumns()[args.cell].field
+            var new_value = args.item[changed_field]
+            var document = {
+                'query': {'_id': args.item._id},
+		'update' : {}
+            };
+            document['update'][changed_field] = new_value;
+	    var resp = $.ajax({
+		type: "POST",
+		url: item_url,
+		data: JSON.stringify({ 'document': document}),
+                contentType: "application/json; charset=utf-8",
+                success: function(data) {
+		    args.grid.invalidateRow(args.row);
+		    args.grid.render();
+		}
+	    });
+        }
+
+        function addRowHandler(e, args) {
+            var item_url = '/grid/'+ options.schema_id + '/' + options.grid_id + '/_entry/create'
+	    var resp = $.ajax({
+		type: "POST",
+		url: item_url,
+		data: JSON.stringify({ 'document': args.item}),
+                contentType: "application/json; charset=utf-8",
+		dataType: "json",
+                success: function(data) {
+		    args.grid.invalidateAllRows();
+		    options.uuids.push(data);
+		    args.grid.updateRowCount();
+		    args.grid.render();
+		}
+	    });
+        }
+
 	$.extend(this, {
 	    // data provider methods
 	    "getLength": getLength,
 	    "getItem": getItem,
-	    "getItemMetadata": getItemMetadata
+	    "getItemMetadata": getItemMetadata,
+            "cellChangeHandler": cellChangeHandler,
+	    "addRowHandler": addRowHandler
 	});
     }
 })(jQuery);

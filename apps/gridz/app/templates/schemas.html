@@ -5,9 +5,9 @@
   {% for schema in schemas %}
   <li>
     <h2>{{ schema.name }}</h2>{{ schema.description|safe }}
-    <a href="{{ url_for('schema',id=schema.id) }}">Show</a>
-    <a href="{{ url_for('destroy_schema',id=schema.id) }}">Destroy</a>
-    <a href="{{ url_for('gridz',schema_id=schema.id) }}">Gridz</a>
+    <a href="{{ url_for('schema',id=schema['_id']) }}">Show</a>
+    <a href="{{ url_for('destroy_schema',id=schema['_id']) }}">Destroy</a>
+    <a href="{{ url_for('gridz',schema_id=schema['_id']) }}">Gridz</a>
   </li>
   {% endfor %}
 </ul>

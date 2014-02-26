@@ -7,6 +7,7 @@
       <h2>{{ grid['name'] }}</h2> {{ grid['description']|safe }}
       <a href="{{ url_for('destroy_grid',schema_id=schema['_id'],id=grid['_id']) }}">Destroy</a>
       <a href="{{ url_for('grid', schema_id=schema['_id'],id=grid['_id']) }}">Grid Fields</a>
+      <a href="{{ url_for('view_data', schema_id=schema['_id'],id=grid['_id']) }}">Grid Data</a>
       </li>
       {% endfor %}
     </ul>

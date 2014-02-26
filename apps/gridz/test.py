@@ -183,7 +183,6 @@ class GridzTestCase(unittest.TestCase):
 # DATA
 #test_view_data
 #test_query_grid
-#test_edit_data
 
 # SINGLE ENTRY REST
     def test_get_entry(self):
@@ -195,7 +194,7 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entry" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = "please supply application/json contentType data with either an _id key, or a query key"
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
         self.assertEqual(0, self.client[self.test_name][self.test_grid_name].find({'_id': ObjectId(self.not_there)}).count())
@@ -259,11 +258,11 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entry/create" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = "please supply a document to insert!"
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
         document = {'document': {'foo': 'foo_value','bar': 3, 'baz': 'value baz'}}
-        rv = self.app.post(path, data = dumps(document))
+        rv = self.app.post(path, data = dumps(document),content_type='application/json')
         resp_doc = loads(rv.data)
         assert '_id' in resp_doc.keys()
         new_id = resp_doc['_id']
@@ -285,11 +284,11 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entry/update" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'This method updates a single entry with a supplied document hash of update and query.  please supply a document to update!'
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
         document = {'document': {}}
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         resp = loads(rv.data)
         expected_message = 'please supply a document[update] update hash of attributes and values to update'
         self.assertEqual(expected_message, resp['error'])
@@ -297,7 +296,7 @@ class GridzTestCase(unittest.TestCase):
         new_foo_value = "THIS IS A NEW FOO VALUE"
         new_baz_value = 50
         document['document']['update'] = { 'foo': new_foo_value, 'baz': new_baz_value }
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         resp = loads(rv.data)
         expected_message = 'please supply a document[query] hash of key value pairs to find the document to update'
         self.assertEqual(expected_message, resp['error'])
@@ -306,7 +305,7 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(initial_baz_value, test_data['baz'])
 
         document['document']['query'] = { '_id': str(new_id) }
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         resp = loads(rv.data)
         test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
         self.assertEqual(new_foo_value, test_data['foo'])
@@ -315,7 +314,7 @@ class GridzTestCase(unittest.TestCase):
         new_bar_value = 'value blaz'
         document['document']['update'] = { 'bar': new_bar_value }
         document['document']['query'] = { 'baz' : new_baz_value }
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         test_data = self.client[self.test_name][self.test_grid_name].find_one({'_id': new_id})
         self.assertEqual(new_bar_value, test_data['bar'])
 
@@ -328,11 +327,11 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entry/remove" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'This method removes a single entry based on its objectid.  please supply a hash with key _id of the entry to remove'
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
         document = {'_id': str(new_id)}
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         resp = loads(rv.data)
         count = self.client[self.test_name][self.test_grid_name].find({'_id': new_id}).count()
         self.assertEqual(0, count)
@@ -351,13 +350,14 @@ class GridzTestCase(unittest.TestCase):
         self.assertEqual(len(new_documents), initial_count)
         path = "/grid/%s/%s/_entries" % (schema_id,grid_id)
         rv = self.app.post(path)
-        entries = loads(rv.data)
-        self.assertEqual(initial_count, len(entries))
-
+        resp = loads(rv.data)
+        expected_message = 'please supply application/json contentType data!'
+        self.assertEqual(expected_message, resp['error'])
+        
         document = {'query': {'baz': '3 baz'}}
         initial_count = self.client[self.test_name][self.test_grid_name].find(document['query'],exhaust=True).count()
         self.assertEqual(1, initial_count)
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         entries = loads(rv.data)
         self.assertEqual(initial_count, len(entries))
         for entry in entries:
@@ -368,7 +368,7 @@ class GridzTestCase(unittest.TestCase):
         document = {'fields': ['foo']}
         initial_count = self.client[self.test_name][self.test_grid_name].find(None,document['fields'],exhaust=True).count()
         self.assertEqual(len(new_documents), initial_count)
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         entries = loads(rv.data)
         self.assertEqual(initial_count, len(entries))
         for entry in entries:
@@ -386,10 +386,10 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entries/create" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'This method allows you to create multiple entries with a documents array.  please supply a document to insert!'
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
-        rv = self.app.post(path, data = dumps({'documents': new_documents}))
+        rv = self.app.post(path, data = dumps({'documents': new_documents}),content_type='application/json')
         new_ids = loads(rv.data)
         self.assertEqual(len(new_documents), len(new_ids))
         idx = 0
@@ -413,10 +413,10 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entries/update" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'This method updates multiple entries with a supplied document hash of update and query. please supply a document to update!'
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
-        rv = self.app.post(path, data=dumps({'document': {}}))
+        rv = self.app.post(path, data=dumps({'document': {}}),content_type='application/json')
         resp = loads(rv.data)
         expected_message = 'please supply a document[update] hash of attributes and values to update'
         self.assertEqual(expected_message, resp['error'])
@@ -429,7 +429,7 @@ class GridzTestCase(unittest.TestCase):
                 }
             }
         }
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         resp = loads(rv.data)
         expected_message = 'please supply a document[query] hash of key value pairs to find documents to update'
         self.assertEqual(expected_message, resp['error'])
@@ -445,7 +445,7 @@ class GridzTestCase(unittest.TestCase):
             }
         }
 
-        rv = self.app.post(path, data=dumps(document))
+        rv = self.app.post(path, data=dumps(document),content_type='application/json')
         entries = list(self.client[self.test_name][self.test_grid_name].find(None,exhaust=True))
         self.assertEqual(len(new_documents), len(entries))
         for entry in entries:
@@ -463,10 +463,10 @@ class GridzTestCase(unittest.TestCase):
         path = "/grid/%s/%s/_entries/remove" % (schema_id,grid_id)
         rv = self.app.post(path)
         resp = loads(rv.data)
-        expected_message = 'This method removes multiple entries. Please supply a query with fields to filter removed entries, or {"all":"true"} to remove all entries'
+        expected_message = 'please supply application/json contentType data!'
         self.assertEqual(expected_message, resp['error'])
 
-        self.app.post(path, data=dumps({'all': 'true'}))
+        self.app.post(path, data=dumps({'all': 'true'}),content_type='application/json')
         self.assertEqual(0, self.client[self.test_name][self.test_grid_name].find().count())
 
         new_ids = self.client[self.test_name][self.test_grid_name].insert(new_documents)
@@ -474,7 +474,7 @@ class GridzTestCase(unittest.TestCase):
 
         self.app.post(path, data=dumps({
             'query': {'bar': {'$gt': 50}}
-        }))
+        }),content_type='application/json')
         entries = self.client[self.test_name][self.test_grid_name].find()
         self.assertEqual(5, entries.count())
         for entry in entries:

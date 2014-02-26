@@ -19,4 +19,5 @@
 <a href="{{ url_for('destroy_grid',schema_id=schema['_id'],id=grid['_id']) }}">Destroy</a>
 <a href="{{ url_for('gridz', schema_id=schema['_id']) }}">Gridz</a>
 <a href="{{ url_for('schemas') }}">Schemas</a>
+<a href="{{ url_for('view_data', schema_id=schema['_id'],id=grid['_id']) }}">Grid Data</a>
 {% endblock %}

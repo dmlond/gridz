@@ -8,23 +8,35 @@
   <link rel="stylesheet" href="{{url_for('static',filename='css/examples.css') }}" type="text/css"/>
 <body>
 <h1>{{ schema['name'] }}/{{ grid['name'] }}</h1>
-<div id="myGrid" style="width:600px;height:500px;"></div>
+<div id="myGrid"></div>
 <script src="{{ url_for('static', filename='js/jquery-1.7.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/jquery.event.drag-2.2.js') }}"></script>
 <script src="{{ url_for('static', filename='js/gridview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/slick.core.js') }}"></script>
 <script src="{{ url_for('static', filename='js/slick.grid.js') }}"></script>
+<script src={{ url_for('static', filename='js/slick.editors.js') }}></script>
 <script>
   var gview = new GridView({
     uuids: {{ entries|safe }},
     schema_id: "{{ schema['_id']|safe }}",
     grid_id: "{{ grid['_id']|safe }}"
   });
+  headers = {{ columns|safe }}
+  for (var i=0; i < headers.length; i++) {
+    headers[i]['editor'] = Slick.Editors.Text;
+  }
   var options = {
     enableCellNavigation: true,
-    enableColumnReorder: false
+    enableColumnReorder: false,
+    editable: true,
+    enableAddRow: true,
+    asyncEditorLoading: false,
+    autoEdit: true,
+    autoHeight: true
   };
-  var grid = new Slick.Grid("#myGrid",gview, {{ columns|safe }}, options);
+  var grid = new Slick.Grid("#myGrid",gview, headers, options);
+  grid.onCellChange.subscribe(gview.cellChangeHandler);
+  grid.onAddNewRow.subscribe(gview.addRowHandler);
 </script>
 </body>
 </html>
