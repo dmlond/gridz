@@ -1,4 +1,5 @@
 class GridsController < ApplicationController
+  before_action :set_schema
   before_action :set_grid, only: [:show, :edit, :update, :destroy]
 
   # GET /grids
@@ -28,7 +29,7 @@ class GridsController < ApplicationController
 
     respond_to do |format|
       if @grid.save
-        format.html { redirect_to @grid, notice: 'Grid was successfully created.' }
+        format.html { redirect_to [@schema, @grid], notice: 'Grid was successfully created.' }
         format.json { render action: 'show', status: :created, location: @grid }
       else
         format.html { render action: 'new' }
@@ -42,7 +43,7 @@ class GridsController < ApplicationController
   def update
     respond_to do |format|
       if @grid.update(grid_params)
-        format.html { redirect_to @grid, notice: 'Grid was successfully updated.' }
+        format.html { redirect_to [@schema, @grid], notice: 'Grid was successfully updated.' }
         format.json { head :no_content }
       else
         format.html { render action: 'edit' }
@@ -56,19 +57,24 @@ class GridsController < ApplicationController
   def destroy
     @grid.destroy
     respond_to do |format|
-      format.html { redirect_to grids_url }
+      format.html { redirect_to schema_grids_url(@schema) }
       format.json { head :no_content }
     end
   end
 
   private
+
+    def set_schema
+      @schema = Schema.find(params[:schema_id])
+    end
+
     # Use callbacks to share common setup or constraints between actions.
     def set_grid
-      @grid = Grid.find(params[:id])
+      @grid = @schema.grids.find(params[:id])
     end
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def grid_params
-      params.require(:grid).permit(:name, :description)
+      params.require(:grid).permit(:name, :description, grid_fields_attributes: [:name, :is_filterable, :_id, :_destroy] )
     end
 end

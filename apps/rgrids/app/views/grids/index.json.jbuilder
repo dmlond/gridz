@@ -1,4 +1,4 @@
 json.array!(@grids) do |grid|
   json.extract! grid, :id, :name, :description
-  json.url grid_url(grid, format: :json)
+  json.url schema_grid_url([@schema, grid], format: :json)
 end

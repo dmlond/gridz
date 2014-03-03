@@ -16,9 +16,9 @@
       <tr>
         <td><%= grid.name %></td>
         <td><%= grid.description %></td>
-        <td><%= link_to 'Show', grid %></td>
-        <td><%= link_to 'Edit', edit_grid_path(grid) %></td>
-        <td><%= link_to 'Destroy', grid, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+        <td><%= link_to 'Show', [@schema, grid] %></td>
+        <td><%= link_to 'Edit', edit_schema_grid_path(@schema, grid) %></td>
+        <td><%= link_to 'Destroy', [@schema, grid], method: :delete, data: { confirm: 'Are you sure?' } %></td>
       </tr>
     <% end %>
   </tbody>
@@ -26,4 +26,4 @@
 
 <br>
 
-<%= link_to 'New Grid', new_grid_path %>
+<%= link_to 'New Grid', new_schema_grid_path(@schema) %>

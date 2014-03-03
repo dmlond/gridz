@@ -2,48 +2,167 @@ require 'test_helper'
 
 class GridsControllerTest < ActionController::TestCase
   setup do
-    @grid = grids(:one)
+    @schema = create(:schema)
+    @grid = @schema.grids.create(attributes_for(:grid))
+    @grid_field = @grid.grid_fields.create(attributes_for(:grid_field))
   end
 
-  test "should get index" do
-    get :index
+  teardown do
+   Mongoid.purge!
+  end
+
+  should "get index" do
+    get :index, schema_id: @schema
     assert_response :success
     assert_not_nil assigns(:grids)
   end
 
-  test "should get new" do
-    get :new
+  should "get new" do
+    get :new, schema_id: @schema
     assert_response :success
   end
 
-  test "should create grid" do
+  should "create grid" do
+    new_grid_attributes = attributes_for(:grid)
     assert_difference('Grid.count') do
-      post :create, grid: { description: @grid.description, name: @grid.name }
+      post :create, schema_id: @schema, grid: new_grid_attributes
     end
-
-    assert_redirected_to grid_path(assigns(:grid))
+    assert_not_nil assigns(:grid)
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(assigns(:grid).id)
+    assert_equal new_grid_attributes[:name], t_grid.name
+    assert_equal new_grid_attributes[:description], t_grid.description
   end
 
-  test "should show grid" do
-    get :show, id: @grid
+  should "create grid with grid_fields" do
+    new_grid_attributes = attributes_for(:grid)
+    new_grid_attributes[:grid_fields_attributes] = [
+                                                     {name: 'random_field', is_filterable: true},
+                                                     {name: 'another_random_field', is_filterable: false}
+                                                    ]
+    assert_difference('Grid.count') do
+      post :create, schema_id: @schema, grid: new_grid_attributes
+    end
+    assert_not_nil assigns(:grid)
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(assigns(:grid).id)
+    assert_equal new_grid_attributes[:name], t_grid.name
+    assert_equal new_grid_attributes[:description], t_grid.description
+    assert_equal new_grid_attributes[:grid_fields_attributes].count, t_grid.grid_fields.count
+    new_grid_attributes[:grid_fields_attributes].each_index do |i|
+      assert_equal new_grid_attributes[:grid_fields_attributes][i][:name], t_grid.grid_fields[i].name
+      if new_grid_attributes[:grid_fields_attributes][i][:is_filterable]
+        assert t_grid.grid_fields[i].is_filterable?, 'should be filterable'
+      else
+        assert !t_grid.grid_fields[i].is_filterable?, 'should not be filterable'
+      end
+    end
+  end
+
+  should "show grid" do
+    get :show, schema_id: @schema, id: @grid
     assert_response :success
   end
 
-  test "should get edit" do
-    get :edit, id: @grid
+  should "get edit" do
+    get :edit, schema_id: @schema, id: @grid
     assert_response :success
   end
 
-  test "should update grid" do
-    patch :update, id: @grid, grid: { description: @grid.description, name: @grid.name }
-    assert_redirected_to grid_path(assigns(:grid))
+  should "update grid" do
+    new_grid_attributes = {
+      name: 'random_name',
+      description: 'a random description'
+    }
+    patch :update, schema_id: @schema, id: @grid, grid: new_grid_attributes
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(@grid.id)
+    assert_equal new_grid_attributes[:name], t_grid.name
+    assert_equal new_grid_attributes[:description], t_grid.description
   end
 
-  test "should destroy grid" do
+  should 'update existing grid_field' do
+    new_grid_attributes = {
+      grid_fields_attributes: [ @grid_field.attributes ]
+    }
+    originally_filterable = @grid_field.is_filterable?
+    new_grid_attributes[:grid_fields_attributes][0][:is_filterable] = originally_filterable ? 'false' : 'true'
+    patch :update, schema_id: @schema, id: @grid, grid: new_grid_attributes
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(@grid.id)
+    t_grid_field = t_grid.grid_fields.find(@grid_field.id)
+    assert_not_nil t_grid_field
+    if originally_filterable
+      assert !t_grid_field.is_filterable?, 'updated_field should not be filterable'
+    else
+      assert t_grid_field.is_filterable?, 'updated_field should be filterable'
+    end
+  end
+
+  should 'add new grid_field' do
+    new_grid_attributes = {
+      grid_fields_attributes: [
+                               {name: 'totally_new_field', is_filterable: true},
+                               {name: 'even_newer_field', is_filterable: false}
+                              ]
+    }
+    patch :update, schema_id: @schema, id: @grid, grid: new_grid_attributes
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(@grid.id)
+    new_grid_attributes[:grid_fields_attributes].each do |field_def|
+      assert t_grid.grid_fields.where(field_def).exists?, 'field_def should exist'
+    end
+  end
+
+  should 'destroy existing grid_field' do
+    destroy_field = @grid.grid_fields.create(name: 'test_delete_field', is_filterable: false)
+    new_grid_attributes = {
+      grid_fields_attributes: [
+                               destroy_field.attributes.merge(_destroy: "1")
+                              ]
+    }
+    patch :update, schema_id: @schema, id: @grid, grid: new_grid_attributes
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(@grid.id)
+    assert !t_grid.grid_fields.where({name: destroy_field.name}).exists?, 'test_delete_field should not exist'
+  end
+
+  should 'update, add, and destroy grid_fields all in the same call' do
+    update_field = @grid.grid_fields.first
+    update_field_attributes = update_field.attributes
+    originally_filterable = update_field.is_filterable?
+    update_field_attributes[:is_filterable] = !update_field.is_filterable
+    destroy_field = @grid.grid_fields.create(name: 'test_delete_field', is_filterable: false)
+    new_field_attributes = [
+                            {name: 'totally_new_field', is_filterable: true},
+                            {name: 'even_newer_field', is_filterable: false}
+                           ]
+    new_grid_attributes = {
+      grid_fields_attributes: [
+                               update_field_attributes,
+                               destroy_field.attributes.merge(_destroy: "1")
+                              ] + new_field_attributes
+    }
+    patch :update, schema_id: @schema, id: @grid, grid: new_grid_attributes
+    assert_redirected_to schema_grid_path(@schema, assigns(:grid))
+    t_grid = Grid.find(@grid.id)
+    updated_grid_field = t_grid.grid_fields.find(update_field.id)
+    if originally_filterable
+      assert !updated_grid_field.is_filterable?, 'updated_grid_field should not now be filterable'
+    else
+      assert updated_grid_field.is_filterable?, 'updated_grid_field should now be filterable'
+    end
+    new_field_attributes.each do |field_def|
+      assert t_grid.grid_fields.where(field_def).exists?, 'field_def should exist'
+    end
+    assert !t_grid.grid_fields.where({name: destroy_field.name}).exists?, 'test_delete_field should not exist'
+  end
+
+  should "destroy grid" do
     assert_difference('Grid.count', -1) do
-      delete :destroy, id: @grid
+      delete :destroy, schema_id: @schema, id: @grid
     end
 
-    assert_redirected_to grids_path
+    assert_redirected_to schema_grids_path(@schema)
   end
 end

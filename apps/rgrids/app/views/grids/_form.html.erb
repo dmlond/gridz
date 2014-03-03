@@ -1,4 +1,4 @@
-<%= form_for(@grid) do |f| %>
+<%= form_for([@schema, @grid]) do |f| %>
   <% if @grid.errors.any? %>
     <div id="error_explanation">
       <h2><%= pluralize(@grid.errors.count, "error") %> prohibited this grid from being saved:</h2>
