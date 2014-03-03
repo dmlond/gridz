@@ -6,3 +6,4 @@ include base
 include httpd
 include python
 include mongo
+include ruby
