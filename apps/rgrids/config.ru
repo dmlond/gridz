@@ -10,4 +10,3 @@ end
 map "/data" do
   run DataApp
 end
-
