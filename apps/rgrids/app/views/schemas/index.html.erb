@@ -8,6 +8,7 @@
       <th></th>
       <th></th>
       <th></th>
+      <th></th>
     </tr>
   </thead>
 
@@ -19,11 +20,11 @@
         <td><%= link_to 'Show', schema %></td>
         <td><%= link_to 'Edit', edit_schema_path(schema) %></td>
         <td><%= link_to 'Destroy', schema, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+        <td><%= link_to 'Grids', schema_grids_path(schema) %></td>
       </tr>
     <% end %>
   </tbody>
 </table>
 
 <br>
-
 <%= link_to 'New Schema', new_schema_path %>

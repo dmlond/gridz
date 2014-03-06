@@ -10,5 +10,15 @@
   <%= @grid.description %>
 </p>
 
+<ul>
+<% @grid.grid_fields.each do |gf| -%>
+  <li>
+      <strong>Field:</strong> <%= gf.name %>
+       <% if gf.is_filterable? -%>
+        Filterable
+       <% end %>
+  </li>
+<% end %>
+</ul>
 <%= link_to 'Edit', edit_schema_grid_path(@schema,@grid) %> |
 <%= link_to 'Back', schema_grids_path(@schema) %>

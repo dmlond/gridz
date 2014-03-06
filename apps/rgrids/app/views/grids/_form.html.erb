@@ -19,6 +19,29 @@
     <%= f.label :description %><br>
     <%= f.text_field :description %>
   </div>
+  <div class="grid_fields">
+    <h2>Fields</h2>
+      <ul class="grid_fields">
+      <% @grid.grid_fields.each do |gf| %>
+         <% iter = 0 -%>
+        <%= f.fields_for :grid_fields, gf do |ff| %>
+          <li class="grid_field">
+           <%= ff.label :name %> <%= ff.text_field :name %>
+           attribute_only <%= ff.radio_button :is_filterable,  '0', {checked: !gf.is_filterable?} %>
+           filterable <%= ff.radio_button :is_filterable,  '1',  {checked: gf.is_filterable?} %>
+<% if gf.name -%>
+           <a href="javascript:void(0)" class="destroy_grid_field" id="destroy_<%= gf.id   %>">destroy</a>
+           <%= ff.check_box(:_destroy, hidden: true) %>
+<% else -%>
+           <a href="javascript:void(0)" class="remove_grid_field">[x]</a>
+<% end -%>
+        <% end %>
+        </li>
+         <% iter += 1 %>
+      <% end %>
+	<li id="add_grid_field_target"><a id="add_grid_field" href="javascript:void(0)">Add Field</a></li>
+      </ul>
+    </div>
   <div class="actions">
     <%= f.submit %>
   </div>

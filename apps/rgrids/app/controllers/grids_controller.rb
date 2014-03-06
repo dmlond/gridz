@@ -15,7 +15,8 @@ class GridsController < ApplicationController
 
   # GET /grids/new
   def new
-    @grid = Grid.new
+    @grid = @schema.grids.build()
+    @grid.grid_fields.build(name: nil, is_filterable: false)
   end
 
   # GET /grids/1/edit
@@ -25,8 +26,7 @@ class GridsController < ApplicationController
   # POST /grids
   # POST /grids.json
   def create
-    @grid = Grid.new(grid_params)
-
+    @grid = @schema.grids.build(grid_params)
     respond_to do |format|
       if @grid.save
         format.html { redirect_to [@schema, @grid], notice: 'Grid was successfully created.' }
@@ -75,6 +75,6 @@ class GridsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def grid_params
-      params.require(:grid).permit(:name, :description, grid_fields_attributes: [:name, :is_filterable, :_id, :_destroy] )
+      params.require(:grid).permit(:name, :description, grid_fields_attributes: [:name, :is_filterable, :id, :_destroy] )
     end
 end
