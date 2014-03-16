@@ -2,8 +2,8 @@
 
 FactoryGirl.define do
   factory :grid do
-    name "MyString"
-    description "MyString"
+    name "NEW_GRID"
+    description "This is a new grid"
     schema
     after(:create) do |grid, evaluator|
       create_list(:grid_field, 1, grid: grid)

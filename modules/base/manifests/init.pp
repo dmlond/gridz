@@ -12,5 +12,7 @@ class base {
       ensure => true;
     'libcurl-devel':
       ensure => true;
+    'git' :
+      ensure => true;
   }
 }

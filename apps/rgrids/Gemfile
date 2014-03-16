@@ -26,10 +26,8 @@ gem 'turbolinks'
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
 gem 'jbuilder', '~> 1.2'
 
-gem 'bson'
 gem "mongoid", "~> 4.0.0.beta1"
-gem 'bson_ext'
-gem 'mongo'
+gem 'moped'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.
@@ -37,6 +35,7 @@ group :doc do
 end
 
 group :test do
+ gem 'rack-test'
  gem 'shoulda'
  gem "factory_girl_rails"
 end
