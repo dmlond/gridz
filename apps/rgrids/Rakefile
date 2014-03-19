@@ -14,3 +14,13 @@ namespace :test do
    end
    Rake::Task['test'].comment = 'test:rest'
 end
+
+#namespace :routes do
+#  require File.expand_path('../lib/grid_rest_api', __FILE__)
+#  puts '-' * 80
+#  puts "REST Routes"
+#  GridRestApi.routes["POST"].each do |r|
+#    puts r[0].to_s.gsub(/\\A/,'').gsub(/\\z/, '').gsub(/\(\?\-mix\:/,'').sub(/\(\[\^\\\/\?\#\]\+\)/, ":#{r[1][0]}").sub(/\(\[\^\\\/\?\#\]\+\)/, ":#{r[1][1]}").gsub(/\\/,'').gs#ub(/\)/,'')
+#  end
+#  puts '-' * 80
+#end
