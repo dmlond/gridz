@@ -395,4 +395,227 @@ class GridRestApiTest < ActiveSupport::TestCase
       assert_equal 0, returned_doc['n']
     end
   end #grid/:schema_id/:id/_entry/remove
+
+  context 'grid/:schema_id/:id/_entries' do
+    setup do
+      @path = "/#{ @schema.id }/#{ @grid.id }/_entries"
+      @new_documents_attributes = []
+      (1..10).each do |i|
+        @new_documents_attributes << {foo: "foo_value_#{ i }",baz: i, bar: "value baz #{ i }"}
+      end
+      @db.with(database: @schema.name) do |_session|
+        _session[@grid.name].insert(@new_documents_attributes)
+        @newly_inserted_docs = _session[@grid.name].find(@new_document_attributes).entries
+      end
+    end
+
+    should 'return JSON with error and status 500 when schema does not exist' do
+      assert @schema.destroy, 'schema is destroyed'
+      assert !Schema.where(_id: @schema.id).exists?, 'the schema should not exist'
+      returned_doc = post_json @path, {}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "schema #{ @schema.id } does not exist!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when grid does not exist' do
+      assert @grid.destroy, 'grid is destroyed'
+      assert !Grid.where(_id: @grid.id).exists?, 'the grid should not exist'
+      returned_doc = post_json @path, {document: @new_document_attributes}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "grid #{ @grid.id } does not exist in schema #{ @schema.id }!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when body is nil' do
+      returned_doc = post_json @path
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request content_type is not application/json' do
+      post(@path, { _id: @newly_inserted_doc['_id'].to_s }.to_json)
+      rbody = last_response.body
+      returned_doc = JSON.parse(rbody)
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request JSON does not contain a query hash' do
+      assert false, 'implement'
+    end
+
+    should 'return JSON with error and status 500 when request JSON query hash contains non filterable fields' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of entries when request JSON contains a query hash that matches entries' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of entries with _id and defined fields when request JSON query hash matches documents and contains a fields array' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of entries with just the _id when request JSON query hash matches documents and contains id_only true' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of all entries when query equals all' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of all entries with _id and defined fields' do
+      assert false, 'implement'
+    end
+
+    should 'return a list of all entries with just the _id field' do
+      assert false, 'implement'
+    end
+
+    should 'return JSON with error and status 500 when fields list contains fields undefined for the schema and grid' do
+      assert false, 'implement'
+    end
+  end #grid/:schema_id/:id/_entries
+
+
+  context 'grid/:schema_id/:id/_entries/create' do
+    setup do
+      @path = "/#{ @schema.id }/#{ @grid.id }/_entries"
+      @new_documents_attributes = []
+      (1..10).each do |i|
+        @new_documents_attributes << {foo: "foo_value_#{ i }",baz: i, bar: "value baz #{ i }"}
+      end
+    end
+
+    should 'return JSON with error and status 500 when schema does not exist' do
+      assert @schema.destroy, 'schema is destroyed'
+      assert !Schema.where(_id: @schema.id).exists?, 'the schema should not exist'
+      returned_doc = post_json @path, {}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "schema #{ @schema.id } does not exist!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when grid does not exist' do
+      assert @grid.destroy, 'grid is destroyed'
+      assert !Grid.where(_id: @grid.id).exists?, 'the grid should not exist'
+      returned_doc = post_json @path, {document: @new_document_attributes}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "grid #{ @grid.id } does not exist in schema #{ @schema.id }!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when body is nil' do
+      returned_doc = post_json @path
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request content_type is not application/json' do
+      post(@path, { _id: @newly_inserted_doc['_id'].to_s }.to_json)
+      rbody = last_response.body
+      returned_doc = JSON.parse(rbody)
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request JSON does not contain a documents key' do
+      assert false, 'implement'
+    end
+
+    should 'return JSON with error and status 500 when request JSON documents contain undefined fields for the grid and schema' do
+      assert false, 'implement'
+    end
+
+    should 'return a status JSON when request JSON contains a docuemnts key and array of new documents' do
+      assert false, 'implement'
+    end
+  end #grid/:schema_id/:id/_entries/create
+
+  context 'grid/:schema_id/:id/_entries/remove' do
+    setup do
+      @path = "/#{ @schema.id }/#{ @grid.id }/_entries"
+      @new_documents_attributes = []
+      (1..10).each do |i|
+        @new_documents_attributes << {foo: "foo_value_#{ i }",baz: i, bar: "value baz #{ i }"}
+      end
+      @db.with(database: @schema.name) do |_session|
+        _session[@grid.name].insert(@new_documents_attributes)
+        @newly_inserted_docs = _session[@grid.name].find(@new_document_attributes).entries
+      end
+    end
+
+    should 'return JSON with error and status 500 when schema does not exist' do
+      assert @schema.destroy, 'schema is destroyed'
+      assert !Schema.where(_id: @schema.id).exists?, 'the schema should not exist'
+      returned_doc = post_json @path, {}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "schema #{ @schema.id } does not exist!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when grid does not exist' do
+      assert @grid.destroy, 'grid is destroyed'
+      assert !Grid.where(_id: @grid.id).exists?, 'the grid should not exist'
+      returned_doc = post_json @path, {document: @new_document_attributes}
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "grid #{ @grid.id } does not exist in schema #{ @schema.id }!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when body is nil' do
+      returned_doc = post_json @path
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request content_type is not application/json' do
+      post(@path, { _id: @newly_inserted_doc['_id'].to_s }.to_json)
+      rbody = last_response.body
+      returned_doc = JSON.parse(rbody)
+      assert_not_nil returned_doc
+      assert_equal 500, last_response.status
+      assert_not_nil returned_doc
+      assert returned_doc.keys.include?('error'), 'there should be an error in the returned json hash'
+      assert_equal "please supply application/json contentType data!", returned_doc['error']
+    end
+
+    should 'return JSON with error and status 500 when request JSON does not contain a query hash' do
+      assert false, 'implement'
+    end
+
+    should 'return JSON with error and status 500 when request JSON query hash contains non filterable fields' do
+      assert false, 'implement'
+    end
+
+    should 'return a status JSON and remove entries when request JSON contains a query hash that matches entries' do
+      assert false, 'implement'
+    end
+
+    should 'return a status JSON and remove all entries when query equals all' do
+      assert false, 'implement'
+    end
+  end #grid/:schema_id/:id/_entries/remove
 end

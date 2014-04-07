@@ -51,8 +51,7 @@ class SchemasController < ApplicationController
     end
   end
 
-  # DELETE /schemas/1
-  # DELETE /schemas/1.json
+  #TODO do not destroy if there is any grid defined for the schema
   def destroy
     @schema.destroy
     respond_to do |format|

@@ -68,4 +68,8 @@ class SchemasControllerTest < ActionController::TestCase
 
     assert_redirected_to schemas_path
   end
+
+  should 'not destroy schema if there are any grids defined for the schema' do
+    assert false 'implement'
+  end
 end

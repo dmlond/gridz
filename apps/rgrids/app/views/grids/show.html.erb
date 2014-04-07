@@ -20,5 +20,12 @@
   </li>
 <% end %>
 </ul>
+
+<h3>Grid Data</h3>
+  <strong>Number of Entries:</strong> TODO NUMBER OF ENTRIES 
+  <strong>Size:</strong> TODO SIZE
+  TODO link to Data /grid/@schema.id.to_s/@grid.id.to_s/data
+  TODO link to Drop /grid/@schema.id.to_s/@grid.id.to_s/_drop, method: :post, data: { confirm: "ARE YOU SURE THERE ARE COUNT ENTRIES?" }</td>
+
 <%= link_to 'Edit', edit_schema_grid_path(@schema,@grid) %> |
 <%= link_to 'Back', schema_grids_path(@schema) %>

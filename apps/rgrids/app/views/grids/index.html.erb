@@ -5,6 +5,10 @@
     <tr>
       <th>Name</th>
       <th>Description</th>
+      <th>Number of Entries</th>
+      <th>Size</th>
+      <th></th>
+      <th></th>
       <th></th>
       <th></th>
       <th></th>
@@ -16,6 +20,10 @@
       <tr>
         <td><%= grid.name %></td>
         <td><%= grid.description %></td>
+        <td>TODO NUMBER OF ENTRIES</td>
+        <td>TODO SIZE</td>
+	<td>TODO link to Data /grid/@schema.id.to_s/@grid.id.to_s/data</td>
+	<td>TODO link to Drop /grid/@schema.id.to_s/@grid.id.to_s/_drop, method: :post, data: { confirm: "ARE YOU SURE THERE ARE COUNT ENTRIES?" }</td>
         <td><%= link_to 'Show', [@schema, grid] %></td>
         <td><%= link_to 'Edit', edit_schema_grid_path(@schema, grid) %></td>
         <td><%= link_to 'Destroy', [@schema, grid], method: :delete, data: { confirm: 'Are you sure?' } %></td>

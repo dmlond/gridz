@@ -52,8 +52,7 @@ class GridsController < ApplicationController
     end
   end
 
-  # DELETE /grids/1
-  # DELETE /grids/1.json
+  #TODO do not destroy if there are any documents in the underlying document store for the schema database and grid collection
   def destroy
     @grid.destroy
     respond_to do |format|

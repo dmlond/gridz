@@ -178,4 +178,8 @@ class GridsControllerTest < ActionController::TestCase
 
     assert_redirected_to schema_grids_path(@schema)
   end
+
+  should 'not destroy grid if there are any documents in the underlying schema db grid collection document store' do
+    assert false, 'implement'
+  end
 end
